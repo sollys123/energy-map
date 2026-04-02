@@ -143,6 +143,31 @@ const buildEnergyEntries=()=>{
     return out;
 };
 
+const INIT_SPOT_PROGRESS_RAW={
+    '广东省':{stage:'连续结算试运行',note:'已进入连续运行阶段'},
+    '山西省':{stage:'现货正式运行',note:'现货市场机制相对成熟'},
+    '山东省':{stage:'连续结算试运行',note:'持续优化规则与结算'},
+    '甘肃省':{stage:'试运行',note:'正在推进现货运行能力建设'}
+};
+
+const buildSpotProgressEntries=()=>{
+    const out={};
+    ALL_PROVINCES.forEach((n)=>{
+        const base=INIT_SPOT_PROGRESS_RAW[n];
+        out[n]={
+            title:`${n} 现货进程`,
+            totalVolume:base?.stage||'待更新',
+            marketVolumeDisplay:base?.note||'请填写现货市场阶段进展',
+            spotStage:base?.stage||'',
+            tags:['现货进程'],
+            details:[{label:'现货阶段',value:base?.stage||'待填写'}],
+            mapValue:1,
+            color:base?'#60a5fa':null
+        };
+    });
+    return out;
+};
+
 const INIT_CAPACITY={};
 const capProvinces={'甘肃省':330,'山西省':100,'宁夏回族自治区':200,'河北省':150,'山东省':120,'内蒙古自治区':180,'新疆维吾尔自治区':160,'广东省':280,'河南省':130,'江苏省':200,'浙江省':180,'青海省':220,'陕西省':200,'湖北省':100,'湖南省':90,'四川省':80,'云南省':70,'辽宁省':140,'安徽省':110};
 Object.entries(capProvinces).forEach(([n,v])=>{
@@ -201,6 +226,7 @@ const App=()=>{
     // ─── Editable Data ───
     const [freqData,setFreqData]=useState(INIT_FREQ);
     const [energyEntries,setEnergyEntries]=useState(()=>buildEnergyEntries());
+    const [spotProgressData,setSpotProgressData]=useState(()=>buildSpotProgressEntries());
     const [capData,setCapData]=useState(INIT_CAPACITY);
     const [resEndow,setResEndow]=useState(INIT_RESOURCE);
     const [resMetric,setResMetric]=useState('wind');
@@ -213,6 +239,7 @@ const App=()=>{
     const [colorScales,setColorScales]=useState({
         frequency:['#8CC7FF','#53A8FF','#2B86F6','#1B64D8','#0E46A5'],
         energy:['#BFE2FF','#53A8FF','#2B86F6','#1B64D8','#0E46A5'],
+        spotProgress:['#dbeafe','#93c5fd','#60a5fa','#3b82f6','#1d4ed8'],
         capacity:['#fde68a','#fbbf24','#f59e0b','#d97706','#92400e'],
         resource:['#d1fae5','#6ee7b7','#34d399','#10b981','#047857']
     });
@@ -222,10 +249,23 @@ const App=()=>{
     const [annoLabel,setAnnoLabel]=useState('');
     const [routeStart,setRouteStart]=useState(null);
 
+    const activeDataKey=useMemo(()=>{
+        if(marketType==='energy')return energyView==='spot-progress'?'spotProgress':'energy';
+        return marketType;
+    },[marketType,energyView]);
+    const sidebarTitle=useMemo(()=>{
+        if(viewMode==='province')return editMode?'标注工具 & 图层管理':'省级图例';
+        if(marketType==='frequency')return '调频辅助服务图例';
+        if(marketType==='energy')return energyView==='spot-progress'?'现货进程图例':'电能量价差图例';
+        if(marketType==='capacity')return '容量电价图例';
+        if(marketType==='resource')return '资源禀赋图例';
+        return '图例 & 控制';
+    },[viewMode,editMode,marketType,energyView]);
+
     // ─── Derived ───
     const getEntry=(name)=>{
-        const datasets={frequency:freqData,energy:energyEntries,capacity:capData};
-        const ds=datasets[marketType==='energy'&&energyView==='spot-progress'?'energy':marketType];
+        const datasets={frequency:freqData,energy:energyEntries,spotProgress:spotProgressData,capacity:capData};
+        const ds=datasets[activeDataKey];
         return ds?.[name]||null;
     };
 
@@ -274,7 +314,7 @@ const App=()=>{
     },[energyEntries]);
 
     // Current data
-    const currentPalette=colorScales[marketType]||colorScales.frequency;
+    const currentPalette=colorScales[activeDataKey]||colorScales.frequency;
 
     // Tiered provinces for frequency
     const tier1=['江苏省','浙江省','安徽省','山东省'];
@@ -302,9 +342,12 @@ const App=()=>{
                 }
             });
         } else if(marketType==='energy'){
-            Object.entries(energyEntries).forEach(([name,d])=>{
+            const source=energyView==='spot-progress'?spotProgressData:energyEntries;
+            Object.entries(source).forEach(([name,d])=>{
                 if(d.mapValue>0){
-                    const color=d.color||getColor(d.mapValue,energyRange.min,energyRange.max,currentPalette);
+                    const color=energyView==='spot-progress'
+                        ?(d.color||'#e2e8f0')
+                        :(d.color||getColor(d.mapValue,energyRange.min,energyRange.max,currentPalette));
                     data.push({name,value:d.mapValue,itemStyle:{areaColor:color,borderColor:'#fff',borderWidth:1.2},emphasis:{itemStyle:{areaColor:hoverColor}}});
                 }
             });
@@ -467,7 +510,7 @@ const App=()=>{
     };
 
     // ─── Effects ───
-    useEffect(()=>{loadMap(viewMode,curProvince);},[viewMode,curProvince,marketType,energyView,resData,freqData,capData,energyEntries,colorScales,annotations]);
+    useEffect(()=>{loadMap(viewMode,curProvince);},[viewMode,curProvince,marketType,energyView,resData,freqData,capData,energyEntries,spotProgressData,colorScales,annotations]);
     useEffect(()=>{setViewMode('china');setCurProvince(null);setSelName(null);setAnnoTool(null);setRouteStart(null);if(marketType!=='energy')setEnergyView('price');},[marketType]);
     useEffect(()=>{if(marketType==='energy'){setViewMode('china');setCurProvince(null);setSelName(null);}},[energyView]);
     useEffect(()=>{const h=()=>chartRef.current?.resize();window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h);},[]);
@@ -496,13 +539,21 @@ const App=()=>{
     const closeSidebar=()=>setSelName(null);
 
     const updateEntry=(name,field,value)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,capacity:setCapData};
-        const setter=setters[marketType];
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
             const entry={...(prev[name]||makeDefaultEntry(name))};
             if(field==='mapValue')entry.mapValue=Number(value)||0;
             else if(field==='color')entry.color=value;
+            else if(field==='spotStage'){
+                entry.spotStage=value;
+                entry.totalVolume=value||'待更新';
+                entry.details=[...(entry.details||[])];
+                const idx=entry.details.findIndex(i=>i.label==='现货阶段');
+                if(idx>-1)entry.details[idx]={...entry.details[idx],value:value||'待填写'};
+                else entry.details.unshift({label:'现货阶段',value:value||'待填写'});
+            }
             else if(field.startsWith('details.')){
                 const[,idx,f]=field.split('.');
                 entry.details=[...(entry.details||[])];
@@ -513,8 +564,8 @@ const App=()=>{
     };
 
     const addDetail=(name)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,capacity:setCapData};
-        const setter=setters[marketType];
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
             const entry={...(prev[name]||makeDefaultEntry(name))};
@@ -524,8 +575,8 @@ const App=()=>{
     };
 
     const removeDetail=(name,idx)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,capacity:setCapData};
-        const setter=setters[marketType];
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
             const entry={...(prev[name]||makeDefaultEntry(name))};
@@ -535,8 +586,8 @@ const App=()=>{
     };
 
     const addTag=(name,tag)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,capacity:setCapData};
-        const setter=setters[marketType];
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
             const entry={...(prev[name]||makeDefaultEntry(name))};
@@ -553,7 +604,7 @@ const App=()=>{
         const a=document.createElement('a');a.href=url;a.download='电力市场热力图_导出.html';a.click();URL.revokeObjectURL(url);
     };
     const handleExportJSON=()=>{
-        const payload={freqData,energyEntries,capData,resEndow,annotations,gridUploads,colorScales};
+        const payload={freqData,energyEntries,spotProgressData,capData,resEndow,annotations,gridUploads,colorScales};
         const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
         const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='heatmap-data.json';a.click();URL.revokeObjectURL(url);
     };
@@ -564,6 +615,7 @@ const App=()=>{
             const j=JSON.parse(ev.target.result);
             if(j.freqData)setFreqData(j.freqData);
             if(j.energyEntries)setEnergyEntries(j.energyEntries);
+            if(j.spotProgressData)setSpotProgressData(j.spotProgressData);
             if(j.capData)setCapData(j.capData);
             if(j.resEndow)setResEndow(j.resEndow);
             if(j.annotations)setAnnotations(j.annotations);
@@ -592,7 +644,7 @@ const App=()=>{
         if(!selName)return null;
         if(marketType==='resource')return resData[selName]||makeDefaultEntry(selName);
         return getOrDefault(selName);
-    },[selName,marketType,freqData,energyEntries,capData,resData]);
+    },[selName,marketType,energyView,freqData,energyEntries,spotProgressData,capData,resData]);
 
     const provAnnos=curProvince?annotations[curProvince]||{markers:[],routes:[],notes:[]}:{markers:[],routes:[],notes:[]};
     const provGrids=(prov)=>[...(gridUploads[prov]||[])];
@@ -646,7 +698,7 @@ const App=()=>{
                 {/* Left Sidebar */}
                 <div className="absolute left-0 top-0 bottom-0 z-40 glass border-r border-slate-200/80 shadow-lg transition-all duration-300 flex flex-col overflow-hidden" style={{width:sidebarOpen?sidebarW:0,transform:sidebarOpen?'translateX(0)':'translateX(-100%)'}}>
                     <div className="p-3 border-b border-slate-100/80 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">图例 & 控制</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sidebarTitle}</span>
                     </div>
                     <div className="p-3 overflow-y-auto flex-1 space-y-4">
                         {viewMode==='china'&&(
@@ -663,7 +715,7 @@ const App=()=>{
                                         <div className="flex gap-1 flex-wrap">
                                             {currentPalette.map((c,i)=>(
                                                 <input key={i} type="color" value={c} onChange={e=>{
-                                                    setColorScales(prev=>{const next={...prev};next[marketType]=[...next[marketType]];next[marketType][i]=e.target.value;return next;});
+                                                    setColorScales(prev=>{const next={...prev};next[activeDataKey]=[...next[activeDataKey]];next[activeDataKey][i]=e.target.value;return next;});
                                                 }} title={`色阶 ${i+1}`}/>
                                             ))}
                                         </div>
@@ -790,12 +842,14 @@ const App=()=>{
                         {/* Map Value + Color */}
                         {editMode&&marketType!=='resource'&&(
                             <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                <div className="flex-1 space-y-1">
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase">地图数值</div>
-                                    <input type="number" value={selEntry.mapValue||0} onChange={e=>updateEntry(selName,'mapValue',e.target.value)} className="w-full border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-900 bg-white focus:outline-none ef"/>
-                                </div>
+                                {!(marketType==='energy'&&energyView==='spot-progress')&&(
+                                    <div className="flex-1 space-y-1">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase">地图数值</div>
+                                        <input type="number" value={selEntry.mapValue||0} onChange={e=>updateEntry(selName,'mapValue',e.target.value)} className="w-full border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-900 bg-white focus:outline-none ef"/>
+                                    </div>
+                                )}
                                 <div className="space-y-1">
-                                    <div className="text-[10px] font-bold text-slate-400 uppercase">自定义颜色</div>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">{marketType==='energy'&&energyView==='spot-progress'?'进程填色':'自定义颜色'}</div>
                                     <div className="flex items-center gap-1.5">
                                         <input type="color" value={selEntry.color||currentPalette[Math.floor(currentPalette.length/2)]} onChange={e=>updateEntry(selName,'color',e.target.value)}/>
                                         {selEntry.color&&<button onClick={()=>updateEntry(selName,'color',null)} className="text-[10px] text-slate-400 hover:text-red-500">重置</button>}
@@ -807,6 +861,16 @@ const App=()=>{
                         {/* Description */}
                         <div className="rounded-xl p-3.5 border border-slate-100 bg-slate-50/50">
                             <div className="flex items-center gap-1.5 font-semibold mb-2 text-slate-600 text-sm"><Coins size={16}/>概览</div>
+                            {marketType==='energy'&&energyView==='spot-progress'&&(
+                                <div className="mb-2.5">
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">现货市场阶段</div>
+                                    {editMode?(
+                                        <input value={selEntry.spotStage||''} onChange={e=>updateEntry(selName,'spotStage',e.target.value)} placeholder="如：连续结算试运行 / 正式运行" className="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm font-semibold text-slate-700 focus:outline-none ef bg-white"/>
+                                    ):(
+                                        <div className="inline-flex px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">{selEntry.spotStage||'待更新'}</div>
+                                    )}
+                                </div>
+                            )}
                             {editMode?(
                                 <textarea className="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none ef bg-white" rows={3} value={selEntry.marketVolumeDisplay||''} onChange={e=>updateEntry(selName,'marketVolumeDisplay',e.target.value)}/>
                             ):(
