@@ -141,15 +141,35 @@ const EMBEDDED_MAPS={
     china:window.__CHINA_GEOJSON__||null,
     provinces:window.__PROVINCE_GEOJSONS__||{}
 };
+const PROVINCE_PINYIN_BY_CODE={
+    '110000':'beijing','120000':'tianjin','130000':'hebei','140000':'shanxi','150000':'neimenggu',
+    '210000':'liaoning','220000':'jilin','230000':'heilongjiang','310000':'shanghai','320000':'jiangsu',
+    '330000':'zhejiang','340000':'anhui','350000':'fujian','360000':'jiangxi','370000':'shandong',
+    '410000':'henan','420000':'hubei','430000':'hunan','440000':'guangdong','450000':'guangxi',
+    '460000':'hainan','500000':'chongqing','510000':'sichuan','520000':'guizhou','530000':'yunnan',
+    '540000':'xizang','610000':'shanxi1','620000':'gansu','630000':'qinghai','640000':'ningxia','650000':'xinjiang'
+};
 const GEOJSON_SOURCES={
     china:[
         'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
-        'https://fastly.jsdelivr.net/npm/echarts@5/map/json/china.json'
+        'https://geo.datav.aliyun.com/areas_v3/bound/100000.json',
+        'https://cdn.jsdelivr.net/npm/echarts/map/json/china.json',
+        'https://unpkg.com/echarts/map/json/china.json'
     ],
-    province:(code)=>[
-        `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`,
-        `https://fastly.jsdelivr.net/npm/echarts@5/map/json/province/${code}.json`
-    ]
+    province:(code)=>{
+        const pinyin=PROVINCE_PINYIN_BY_CODE[String(code)];
+        const urls=[
+            `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`,
+            `https://geo.datav.aliyun.com/areas_v3/bound/${code}.json`
+        ];
+        if(pinyin){
+            urls.push(`https://cdn.jsdelivr.net/npm/echarts/map/json/province/${pinyin}.json`);
+            urls.push(`https://unpkg.com/echarts/map/json/province/${pinyin}.json`);
+        }
+        urls.push(`https://cdn.jsdelivr.net/npm/echarts/map/json/province/${code}.json`);
+        urls.push(`https://unpkg.com/echarts/map/json/province/${code}.json`);
+        return urls;
+    }
 };
 const fetchGeoJSONWithFallback=async(urls=[])=>{
     let lastErr=null;
@@ -489,6 +509,7 @@ const App=()=>{
                 }
             }
 
+            if(!geo)throw new Error(`未找到可用地图数据: ${mode==='china'?'全国':'省份'} ${provinceName||''}`.trim());
             if(!window.echarts)return;
             window.echarts.registerMap(mapName,geo);
             if(chartRef.current)chartRef.current.dispose();
