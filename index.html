@@ -141,6 +141,33 @@ const EMBEDDED_MAPS={
     china:window.__CHINA_GEOJSON__||null,
     provinces:window.__PROVINCE_GEOJSONS__||{}
 };
+const GEOJSON_SOURCES={
+    china:[
+        'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
+        'https://fastly.jsdelivr.net/npm/echarts@5/map/json/china.json'
+    ],
+    province:(code)=>[
+        `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`,
+        `https://fastly.jsdelivr.net/npm/echarts@5/map/json/province/${code}.json`
+    ]
+};
+const fetchGeoJSONWithFallback=async(urls=[])=>{
+    let lastErr=null;
+    for(const url of urls){
+        try{
+            const res=await fetch(url,{cache:'no-store'});
+            if(!res.ok)throw new Error(`HTTP ${res.status}`);
+            const json=await res.json();
+            if(json&&json.type==='FeatureCollection')return json;
+            if(json&&json.features)return json;
+            throw new Error('Invalid GeoJSON payload');
+        }catch(err){
+            lastErr=err;
+            console.warn('GeoJSON source failed:',url,err?.message||err);
+        }
+    }
+    throw lastErr||new Error('All GeoJSON sources failed');
+};
 const missingProvinceGeojson=REQUIRED_PROVINCE_CODES.filter(code=>!EMBEDDED_MAPS.provinces?.[code]);
 if(!EMBEDDED_MAPS.china||missingProvinceGeojson.length){
     console.warn('Embedded map dataset is incomplete.',{hasChina:!!EMBEDDED_MAPS.china,missingProvinceCount:missingProvinceGeojson.length});
@@ -304,6 +331,7 @@ const App=()=>{
     const [curProvince,setCurProvince]=useState(null);
     const [selName,setSelName]=useState(null);
     const [loading,setLoading]=useState(true);
+    const [mapError,setMapError]=useState('');
     const [sidebarOpen,setSidebarOpen]=useState(true);
     const [sidebarW,setSidebarW]=useState(280);
     const [isResizing,setIsResizing]=useState(false);
@@ -437,21 +465,28 @@ const App=()=>{
     // ─── Load Map (embedded GeoJSON only) ───
     const loadMap=async(mode,provinceName=null)=>{
         setLoading(true);
+        setMapError('');
         try{
             let mapName='china';
             let geo=EMBEDDED_MAPS.china;
+            let code=null;
 
             if(mode==='province'&&provinceName){
-                const code=ADCODE[provinceName];
+                code=ADCODE[provinceName];
                 if(!code){setLoading(false);return;}
                 mapName=provinceName;
                 geo=EMBEDDED_MAPS.provinces[String(code)]||EMBEDDED_MAPS.provinces[provinceName]||null;
             }
 
             if(!geo){
-                console.error('Embedded GeoJSON is missing for map:',mapName);
-                setLoading(false);
-                return;
+                if(mode==='china'){
+                    geo=await fetchGeoJSONWithFallback(GEOJSON_SOURCES.china);
+                    EMBEDDED_MAPS.china=geo;
+                }else if(code){
+                    geo=await fetchGeoJSONWithFallback(GEOJSON_SOURCES.province(code));
+                    EMBEDDED_MAPS.provinces[String(code)]=geo;
+                    EMBEDDED_MAPS.provinces[provinceName]=geo;
+                }
             }
 
             if(!window.echarts)return;
@@ -553,7 +588,11 @@ const App=()=>{
                     setCurProvince(params.name);setSelName(params.name);setViewMode('province');
                 }
             });
-        }catch(e){console.error('Map error:',e);setLoading(false);}
+        }catch(e){
+            console.error('Map error:',e);
+            setMapError('地图数据加载失败：内置地图缺失且在线拉取失败，请检查网络后刷新页面。');
+            setLoading(false);
+        }
     };
 
     const addAnnotation=(prov,coord,px,py)=>{
@@ -1011,6 +1050,11 @@ const App=()=>{
                             <span className="text-xs text-slate-400 tracking-wide">加载地图数据…</span>
                         </div>
                     )}
+                    {mapError&&!loading&&(
+                        <div className="absolute inset-x-6 top-4 z-50 rounded-lg border border-red-200 bg-red-50/95 text-red-700 px-4 py-2.5 text-xs shadow-sm">
+                            {mapError}
+                        </div>
+                    )}
                     <div ref={mapRef} className="w-full h-full cursor-pointer"/>
                 </div>
             </div>
@@ -1172,4 +1216,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
-
