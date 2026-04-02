@@ -71,6 +71,15 @@ input[type=color]::-webkit-color-swatch { border:2px solid var(--border-light); 
 </head>
 <body>
 <div id="root"></div>
+
+<script>
+// Offline map bundle. Replace with actual GeoJSON content at build time.
+// window.__CHINA_GEOJSON__ = {...};
+// window.__PROVINCE_GEOJSONS__ = {'110000': {...}, ...};
+window.__CHINA_GEOJSON__ = window.__CHINA_GEOJSON__ || null;
+window.__PROVINCE_GEOJSONS__ = window.__PROVINCE_GEOJSONS__ || {};
+</script>
+
 <script type="text/babel">
 const{useState,useEffect,useRef,useMemo,useCallback}=React;
 
@@ -116,10 +125,27 @@ const ADCODE={
 '西藏自治区':540000,'台湾省':710000,'香港特别行政区':810000
 };
 const ALL_PROVINCES=Object.keys(ADCODE);
+const REQUIRED_PROVINCE_CODES=Object.values(ADCODE).map(String);
+
 const ALIAS={'北京':'北京市','天津':'天津市','河北南网':'河北省','冀北':'河北省','山东':'山东省','山西':'山西省','安徽':'安徽省','福建':'福建省','上海':'上海市','江苏':'江苏省','浙江':'浙江省','湖北':'湖北省','湖南':'湖南省','河南':'河南省','江西':'江西省','吉林':'吉林省','黑龙江':'黑龙江省','辽宁':'辽宁省','甘肃':'甘肃省','宁夏':'宁夏回族自治区','青海':'青海省','陕西':'陕西省','新疆':'新疆维吾尔自治区','四川':'四川省','重庆':'重庆市','广东':'广东省','广西':'广西壮族自治区','贵州':'贵州省','云南':'云南省','海南':'海南省','蒙西':'内蒙古自治区','蒙东':'内蒙古自治区'};
 const norm=n=>ALIAS[n]||n;
 const shortName=n=>(n||'').replace(/省|市|自治区|回族|壮族|维吾尔|特别行政区/g,'');
 const hoverColor='#fbbf24';
+
+
+
+// ═══ EMBEDDED GEOJSON (no runtime remote fetch) ═══
+// NOTE: Data is expected to be bundled in this HTML. `china` is the national map,
+// and `provinces` contains province-level GeoJSON keyed by province adcode string.
+const EMBEDDED_MAPS={
+    china:window.__CHINA_GEOJSON__||null,
+    provinces:window.__PROVINCE_GEOJSONS__||{}
+};
+const missingProvinceGeojson=REQUIRED_PROVINCE_CODES.filter(code=>!EMBEDDED_MAPS.provinces?.[code]);
+if(!EMBEDDED_MAPS.china||missingProvinceGeojson.length){
+    console.warn('Embedded map dataset is incomplete.',{hasChina:!!EMBEDDED_MAPS.china,missingProvinceCount:missingProvinceGeojson.length});
+}
+
 
 const makeDefaultEntry=(name)=>({
     title:name,totalVolume:'暂无数据',
@@ -408,38 +434,24 @@ const App=()=>{
         return data;
     };
 
-    // ─── Load Map (with fallback for China) ───
+    // ─── Load Map (embedded GeoJSON only) ───
     const loadMap=async(mode,provinceName=null)=>{
         setLoading(true);
         try{
-            let url,mapName;
+            let mapName='china';
+            let geo=EMBEDDED_MAPS.china;
+
             if(mode==='province'&&provinceName){
                 const code=ADCODE[provinceName];
                 if(!code){setLoading(false);return;}
-                url=`https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`;
                 mapName=provinceName;
-            } else {
-                url='https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
-                mapName='china';
+                geo=EMBEDDED_MAPS.provinces[String(code)]||EMBEDDED_MAPS.provinces[provinceName]||null;
             }
 
-            // Try primary source, fallback to alternative
-            let geo;
-            try {
-                const resp=await fetch(url,{timeout:8000});
-                geo=await resp.json();
-            } catch(e1) {
-                // Fallback: try alternative China CDN
-                const code=mode==='province'&&provinceName?ADCODE[provinceName]:'100000';
-                const fallbackUrl=`https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`;
-                try {
-                    const resp2=await fetch(fallbackUrl);
-                    geo=await resp2.json();
-                } catch(e2) {
-                    console.error('Both map sources failed',e1,e2);
-                    setLoading(false);
-                    return;
-                }
+            if(!geo){
+                console.error('Embedded GeoJSON is missing for map:',mapName);
+                setLoading(false);
+                return;
             }
 
             if(!window.echarts)return;
