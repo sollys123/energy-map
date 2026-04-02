@@ -3,33 +3,73 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>电力市场综合热力图 v3</title>
+<title>电力市场综合热力图 v4</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script crossorigin src="https://cdn.staticfile.net/react/18.2.0/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.staticfile.net/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.staticfile.net/babel-standalone/7.22.20/babel.min.js"></script>
 <script src="https://cdn.staticfile.net/echarts/5.4.3/echarts.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<!-- 国内可用字体：使用 lxgw-wenkai CDN（国内镜像） -->
+<link href="https://cdn.staticfile.net/lxgw-wenkai-screen-webfont/1.7.0/style.min.css" rel="stylesheet">
 <style>
-*{font-family:'Noto Sans SC',system-ui,sans-serif;box-sizing:border-box}
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#c1cad6;border-radius:6px}
-::-webkit-scrollbar-thumb:hover{background:#8899aa}
-.fade-in{animation:fadeIn .35s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-.glass{background:rgba(255,255,255,.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-input[type=color]{-webkit-appearance:none;border:none;width:28px;height:28px;padding:0;cursor:pointer;border-radius:6px;overflow:hidden}
-input[type=color]::-webkit-color-swatch-wrapper{padding:0}
-input[type=color]::-webkit-color-swatch{border:2px solid #e2e8f0;border-radius:5px}
-.ef{transition:all .15s}
-.ef:focus{box-shadow:0 0 0 2px rgba(59,130,246,.25);border-color:#93c5fd}
-.tool-btn{transition:all .15s}
-.tool-btn:hover{transform:translateY(-1px)}
-.tool-btn.active{box-shadow:0 0 0 2px rgba(59,130,246,.4)}
+:root {
+  --bg-base: #f0f2f6;
+  --bg-glass: rgba(255,255,255,.92);
+  --glass-border: rgba(203,213,225,.5);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+  --shadow-panel: 0 4px 32px rgba(0,0,0,.10);
+  --accent-blue: #2563eb;
+  --accent-indigo: #4f46e5;
+  --accent-amber: #d97706;
+  --accent-emerald: #059669;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-light: #e2e8f0;
+  --border-subtle: #f1f5f9;
+}
+* { font-family: 'LXGW WenKai Screen', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; box-sizing: border-box; margin:0; }
+body { background: var(--bg-base); }
+::-webkit-scrollbar { width:5px; height:5px }
+::-webkit-scrollbar-track { background:transparent }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:8px }
+::-webkit-scrollbar-thumb:hover { background:#94a3b8 }
+
+.glass { background:var(--bg-glass); backdrop-filter:blur(16px) saturate(1.4); -webkit-backdrop-filter:blur(16px) saturate(1.4); }
+.fade-in { animation: fadeIn .3s cubic-bezier(.4,0,.2,1) }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+.shimmer-loading { background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size:200% 100%; animation:shimmer 1.8s infinite }
+
+input[type=color] { -webkit-appearance:none; border:none; width:26px; height:26px; padding:0; cursor:pointer; border-radius:6px; overflow:hidden }
+input[type=color]::-webkit-color-swatch-wrapper { padding:0 }
+input[type=color]::-webkit-color-swatch { border:2px solid var(--border-light); border-radius:5px }
+
+.ef { transition: all .18s cubic-bezier(.4,0,.2,1) }
+.ef:focus { box-shadow:0 0 0 2.5px rgba(37,99,235,.18); border-color:#93c5fd; outline:none }
+
+.tool-btn { transition:all .15s }
+.tool-btn:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.06) }
+.tool-btn.active { box-shadow:0 0 0 2px rgba(37,99,235,.35) }
+
+.tab-btn { position:relative; transition:all .2s }
+.tab-btn::after { content:''; position:absolute; bottom:0; left:50%; width:0; height:2.5px; border-radius:2px; background:currentColor; transition:all .25s cubic-bezier(.4,0,.2,1); transform:translateX(-50%) }
+.tab-btn.active::after { width:70% }
+
+.legend-bar { border-radius:6px; position:relative; overflow:hidden }
+.legend-bar::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg,rgba(255,255,255,.15) 0%,transparent 40%,rgba(0,0,0,.08) 100%); pointer-events:none }
+
+.detail-panel { box-shadow: -8px 0 40px rgba(0,0,0,.08) }
+
+.tag-chip { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:5px; font-size:11px; line-height:1.4; transition:all .15s; }
+.tag-chip .tag-x { opacity:0; width:0; overflow:hidden; transition:all .15s; cursor:pointer; flex-shrink:0 }
+.tag-chip:hover .tag-x { opacity:1; width:14px; margin-left:2px }
+
+/* Gradient text */
+.grad-text { background-clip:text; -webkit-background-clip:text; -webkit-text-fill-color:transparent }
 </style>
 </head>
-<body class="bg-[#eef1f5]">
+<body>
 <div id="root"></div>
 <script type="text/babel">
 const{useState,useEffect,useRef,useMemo,useCallback}=React;
@@ -62,6 +102,7 @@ const Pencil=p=><Ic {...p}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-
 const Route=p=><Ic {...p}><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></Ic>;
 const StickyNote=p=><Ic {...p}><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M14 3v4a2 2 0 0 0 2 2h4"/></Ic>;
 const Palette=p=><Ic {...p}><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></Ic>;
+const InfoIcon=p=><Ic {...p}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></Ic>;
 
 // ═══ CONSTANTS ═══
 const ADCODE={
@@ -78,11 +119,8 @@ const ALL_PROVINCES=Object.keys(ADCODE);
 const ALIAS={'北京':'北京市','天津':'天津市','河北南网':'河北省','冀北':'河北省','山东':'山东省','山西':'山西省','安徽':'安徽省','福建':'福建省','上海':'上海市','江苏':'江苏省','浙江':'浙江省','湖北':'湖北省','湖南':'湖南省','河南':'河南省','江西':'江西省','吉林':'吉林省','黑龙江':'黑龙江省','辽宁':'辽宁省','甘肃':'甘肃省','宁夏':'宁夏回族自治区','青海':'青海省','陕西':'陕西省','新疆':'新疆维吾尔自治区','四川':'四川省','重庆':'重庆市','广东':'广东省','广西':'广西壮族自治区','贵州':'贵州省','云南':'云南省','海南':'海南省','蒙西':'内蒙古自治区','蒙东':'内蒙古自治区'};
 const norm=n=>ALIAS[n]||n;
 const shortName=n=>(n||'').replace(/省|市|自治区|回族|壮族|维吾尔|特别行政区/g,'');
-const hoverColor='#facc15';
-const PROVINCE_PINYIN={'北京市':'beijing','天津市':'tianjin','河北省':'hebei','山西省':'shanxi','内蒙古自治区':'neimenggu','辽宁省':'liaoning','吉林省':'jilin','黑龙江省':'heilongjiang','上海市':'shanghai','江苏省':'jiangsu','浙江省':'zhejiang','安徽省':'anhui','福建省':'fujian','江西省':'jiangxi','山东省':'shandong','河南省':'henan','湖北省':'hubei','湖南省':'hunan','广东省':'guangdong','广西壮族自治区':'guangxi','海南省':'hainan','重庆市':'chongqing','四川省':'sichuan','贵州省':'guizhou','云南省':'yunnan','西藏自治区':'xizang','陕西省':'shanxi1','甘肃省':'gansu','青海省':'qinghai','宁夏回族自治区':'ningxia','新疆维吾尔自治区':'xinjiang','台湾省':'taiwan','香港特别行政区':'xianggang'};
+const hoverColor='#fbbf24';
 
-// ═══ DEFAULT DATA FACTORY ═══
-// Creates a default entry for ANY province so empty ones are also editable
 const makeDefaultEntry=(name)=>({
     title:name,totalVolume:'暂无数据',
     marketVolumeDisplay:'暂无详细信息，点击编辑模式添加数据',
@@ -186,7 +224,6 @@ const INIT_RESOURCE={
 };
 const RES_LABELS={wind:'风电(GW)',solar:'光伏(GW)',hydro:'水电(GW)',thermal:'火电(GW)'};
 
-// Province annotation types for province-level maps
 const ANNO_TYPES={
     marker:{label:'标注点',icon:'pin',colors:['#22c55e','#7e22ce','#0ea5e9','#ef4444','#f59e0b','#0057F1']},
     route:{label:'输送路线',icon:'route',colors:['#334155','#16a34a','#7e22ce','#0ea5e9','#ef4444']},
@@ -202,6 +239,32 @@ const MARKER_PRESETS=[
 ];
 
 
+// ═══ LEGEND COMPONENT ═══
+const LegendBar=({palette,min,max,unit,label,ticks,vertical=true})=>{
+    const gradStr=vertical
+        ?`linear-gradient(to top, ${palette[0]}, ${palette[Math.floor(palette.length/2)]}, ${palette[palette.length-1]})`
+        :`linear-gradient(to right, ${palette[0]}, ${palette[Math.floor(palette.length/2)]}, ${palette[palette.length-1]})`;
+    const tickLabels=ticks||[
+        {pos:'0%',text:`${min}${unit??' '}`},
+        {pos:'50%',text:`${((min+max)/2).toFixed(max>=100?0:2)}${unit??''}`},
+        {pos:'100%',text:`${max}${unit??''}`}
+    ];
+    return(
+        <div className="space-y-1.5">
+            {label&&<div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</div>}
+            <div className="flex items-stretch gap-2">
+                <div className="legend-bar w-3 rounded-md" style={{background:gradStr,minHeight:80}}/>
+                <div className="flex flex-col justify-between py-0.5" style={{minHeight:80}}>
+                    {[...tickLabels].reverse().map((t,i)=>(
+                        <div key={i} className="text-[10px] text-slate-500 leading-none whitespace-nowrap">{t.text}</div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 // ═══ MAIN APP ═══
 const App=()=>{
     const mapRef=useRef(null);
@@ -209,7 +272,6 @@ const App=()=>{
     const pieRef=useRef(null);
     const pieInst=useRef(null);
 
-    // ─── Core State ───
     const [marketType,setMarketType]=useState('frequency');
     const [energyView,setEnergyView]=useState('price');
     const [viewMode,setViewMode]=useState('china');
@@ -224,7 +286,6 @@ const App=()=>{
     const [previewImg,setPreviewImg]=useState(null);
     const resizeRef=useRef({x:0,w:280});
 
-    // ─── Editable Data ───
     const [freqData,setFreqData]=useState(INIT_FREQ);
     const [energyEntries,setEnergyEntries]=useState(()=>buildEnergyEntries());
     const [spotProgressData,setSpotProgressData]=useState(()=>buildSpotProgressEntries());
@@ -232,20 +293,16 @@ const App=()=>{
     const [resEndow,setResEndow]=useState(INIT_RESOURCE);
     const [resMetric,setResMetric]=useState('wind');
     const [resInput,setResInput]=useState('');
-    // Province annotations: {provinceName: {markers:[], routes:[], notes:[], legend:[]}}
     const [annotations,setAnnotations]=useState({});
-    // Grid uploads: {provinceName: [{id,src,name,updatedAt}]}
     const [gridUploads,setGridUploads]=useState({});
-    // Custom color scales
     const [colorScales,setColorScales]=useState({
-        frequency:['#8CC7FF','#53A8FF','#2B86F6','#1B64D8','#0E46A5'],
-        energy:['#BFE2FF','#53A8FF','#2B86F6','#1B64D8','#0E46A5'],
+        frequency:['#DBEAFE','#60A5FA','#2563EB','#1E40AF','#1E3A5F'],
+        energy:['#E0E7FF','#818CF8','#6366F1','#4338CA','#312E81'],
         spotProgress:['#dbeafe','#93c5fd','#60a5fa','#3b82f6','#1d4ed8'],
-        capacity:['#fde68a','#fbbf24','#f59e0b','#d97706','#92400e'],
-        resource:['#d1fae5','#6ee7b7','#34d399','#10b981','#047857']
+        capacity:['#FEF3C7','#FBBF24','#F59E0B','#D97706','#92400E'],
+        resource:['#D1FAE5','#6EE7B7','#34D399','#059669','#064E3B']
     });
-    // Province tool state
-    const [annoTool,setAnnoTool]=useState(null); // null | 'marker' | 'route' | 'note'
+    const [annoTool,setAnnoTool]=useState(null);
     const [annoColor,setAnnoColor]=useState('#22c55e');
     const [annoLabel,setAnnoLabel]=useState('');
     const [routeStart,setRouteStart]=useState(null);
@@ -254,32 +311,28 @@ const App=()=>{
         if(marketType==='energy')return energyView==='spot-progress'?'spotProgress':'energy';
         return marketType;
     },[marketType,energyView]);
+
     const sidebarTitle=useMemo(()=>{
-        if(viewMode==='province')return editMode?'标注工具 & 图层管理':'省级图例';
-        if(marketType==='frequency')return '调频辅助服务图例';
-        if(marketType==='energy')return energyView==='spot-progress'?'现货进程图例':'电能量价差图例';
-        if(marketType==='capacity')return '容量电价图例';
-        if(marketType==='resource')return '资源禀赋图例';
-        return '图例 & 控制';
+        if(viewMode==='province')return editMode?'标注工具':'省级图例';
+        if(marketType==='frequency')return '调频辅助服务';
+        if(marketType==='energy')return energyView==='spot-progress'?'现货市场进程':'电能量价差';
+        if(marketType==='capacity')return '容量电价';
+        if(marketType==='resource')return '资源禀赋';
+        return '图例';
     },[viewMode,editMode,marketType,energyView]);
 
-    // ─── Derived ───
     const getEntry=(name)=>{
         const datasets={frequency:freqData,energy:energyEntries,spotProgress:spotProgressData,capacity:capData};
-        const ds=datasets[activeDataKey];
-        return ds?.[name]||null;
+        return datasets[activeDataKey]?.[name]||null;
     };
-
     const getOrDefault=(name)=>getEntry(name)||makeDefaultEntry(name);
 
-    // Color helper
     const getColor=(value,min,max,palette)=>{
         const span=max-min||1;
         const ratio=Math.min(1,Math.max(0,(value-min)/span));
         return palette[Math.min(palette.length-1,Math.floor(ratio*(palette.length-1)))];
     };
 
-    // ─── Resource computed ───
     const resMetrics=useMemo(()=>{const k=new Set();Object.values(resEndow).forEach(i=>Object.keys(i).forEach(x=>k.add(x)));return Array.from(k);},[resEndow]);
     const resRange=useMemo(()=>{const v=Object.values(resEndow).map(x=>Number(x?.[resMetric])||0);return v.length?{min:Math.min(...v),max:Math.max(...v)}:{min:0,max:1};},[resEndow,resMetric]);
 
@@ -296,33 +349,25 @@ const App=()=>{
         return out;
     },[resEndow,resMetric]);
 
-    // Freq range
     const freqRange=useMemo(()=>{
         const vals=Object.values(freqData).map(d=>d.mapValue||0).filter(v=>v>0);
         return vals.length?{min:Math.min(...vals),max:Math.max(...vals)}:{min:0,max:5000};
     },[freqData]);
-
-    // Capacity range
     const capRange=useMemo(()=>{
         const vals=Object.values(capData).map(d=>d.mapValue||0).filter(v=>v>0);
         return vals.length?{min:Math.min(...vals),max:Math.max(...vals)}:{min:0,max:330};
     },[capData]);
-
-    // Energy range
     const energyRange=useMemo(()=>{
         const vals=Object.values(energyEntries).map(d=>d.mapValue||0).filter(v=>v>0);
         return vals.length?{min:Math.min(...vals),max:Math.max(...vals)}:{min:0,max:1};
     },[energyEntries]);
 
-    // Current data
     const currentPalette=colorScales[activeDataKey]||colorScales.frequency;
 
-    // Tiered provinces for frequency
     const tier1=['江苏省','浙江省','安徽省','山东省'];
     const tier2=['贵州省','云南省','广西壮族自治区','湖南省','湖北省','江西省','内蒙古自治区'];
     const tier3=['新疆维吾尔自治区','黑龙江省','吉林省','辽宁省','青海省'];
 
-    // ─── Generate Map Data ───
     const generateMapData=()=>{
         const data=[];
         if(marketType==='frequency'){
@@ -363,46 +408,40 @@ const App=()=>{
         return data;
     };
 
-    // ─── Load Map ───
-    const fetchFirstJSON=async(urls)=>{
-        let lastErr=null;
-        for(const u of urls){
-            try{
-                const ctrl=new AbortController();
-                const timer=setTimeout(()=>ctrl.abort(),10000);
-                const resp=await fetch(u,{signal:ctrl.signal,cache:'no-store'});
-                clearTimeout(timer);
-                if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
-                return await resp.json();
-            }catch(err){lastErr=err;}
-        }
-        throw(lastErr||new Error('地图数据加载失败'));
-    };
-
+    // ─── Load Map (with fallback for China) ───
     const loadMap=async(mode,provinceName=null)=>{
         setLoading(true);
         try{
-            let urls=[
-                'https://fastly.jsdelivr.net/npm/echarts@5/map/json/china.json',
-                'https://cdn.jsdelivr.net/npm/echarts@5/map/json/china.json',
-                'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json'
-            ];
-            let mapName='china';
+            let url,mapName;
             if(mode==='province'&&provinceName){
                 const code=ADCODE[provinceName];
-                const py=PROVINCE_PINYIN[provinceName];
-                if(code){
-                    urls=[
-                        ...(py?[
-                            `https://fastly.jsdelivr.net/npm/echarts@5/map/json/province/${py}.json`,
-                            `https://cdn.jsdelivr.net/npm/echarts@5/map/json/province/${py}.json`
-                        ]:[]),
-                        `https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`
-                    ];
-                    mapName=provinceName;
+                if(!code){setLoading(false);return;}
+                url=`https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`;
+                mapName=provinceName;
+            } else {
+                url='https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json';
+                mapName='china';
+            }
+
+            // Try primary source, fallback to alternative
+            let geo;
+            try {
+                const resp=await fetch(url,{timeout:8000});
+                geo=await resp.json();
+            } catch(e1) {
+                // Fallback: try alternative China CDN
+                const code=mode==='province'&&provinceName?ADCODE[provinceName]:'100000';
+                const fallbackUrl=`https://geo.datav.aliyun.com/areas_v3/bound/${code}_full.json`;
+                try {
+                    const resp2=await fetch(fallbackUrl);
+                    geo=await resp2.json();
+                } catch(e2) {
+                    console.error('Both map sources failed',e1,e2);
+                    setLoading(false);
+                    return;
                 }
             }
-            const geo=await fetchFirstJSON(urls);
+
             if(!window.echarts)return;
             window.echarts.registerMap(mapName,geo);
             if(chartRef.current)chartRef.current.dispose();
@@ -413,23 +452,23 @@ const App=()=>{
             if(mode==='china'){
                 option={
                     backgroundColor:'transparent',
-                    tooltip:{trigger:'item',backgroundColor:'rgba(255,255,255,.96)',borderColor:'#e2e8f0',borderWidth:1,padding:14,textStyle:{color:'#1e293b'},
+                    tooltip:{trigger:'item',backgroundColor:'rgba(255,255,255,.97)',borderColor:'#e2e8f0',borderWidth:1,padding:[12,16],textStyle:{color:'#1e293b',fontFamily:'inherit'},
+                        extraCssText:'border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.1);',
                         formatter:(params)=>{
-                            if(params.value===undefined||params.value===null)return`<b>${params.name}</b><div style="font-size:11px;color:#94a3b8;margin-top:4px">点击查看详情 / 双击进入省级</div>`;
+                            if(params.value===undefined||params.value===null)return`<div style="font-weight:700;font-size:13px">${params.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">点击查看详情 · 双击进入省级</div>`;
                             const entry=getEntry(params.name)||(marketType==='resource'?resData[params.name]:null);
-                            if(!entry)return`<b>${params.name}</b><div style="font-size:11px;color:#94a3b8;margin-top:4px">暂无数据 · 点击查看 · 双击进入省级</div>`;
+                            if(!entry)return`<div style="font-weight:700;font-size:13px">${params.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">暂无数据 · 点击查看</div>`;
                             return`<div style="font-weight:700;font-size:13px;margin-bottom:4px;">${params.name}</div>`
-                                +(entry.totalVolume?`<div style="font-size:12px;color:#475569;margin-bottom:4px;">${entry.totalVolume}</div>`:'')
-                                +`<div style="font-size:11px;color:#2563eb;border-top:1px solid #f1f5f9;padding-top:4px;margin-top:4px;">点击查看详情 · 双击进入省级地图</div>`;
+                                +(entry.totalVolume?`<div style="font-size:12px;color:#475569;">${entry.totalVolume}</div>`:'')
+                                +`<div style="font-size:10px;color:#2563eb;border-top:1px solid #f1f5f9;padding-top:5px;margin-top:5px;">单击查看 · 双击进入省级</div>`;
                         }},
                     series:[{name:'市场',type:'map',map:'china',roam:true,zoom:1.2,center:[104.114,37.55],
-                        label:{show:true,fontSize:10,color:'rgba(0,0,0,.4)'},
+                        label:{show:true,fontSize:10,color:'rgba(0,0,0,.35)',fontFamily:'inherit'},
                         itemStyle:{areaColor:'#f1f5f9',borderColor:'#cbd5e1',borderWidth:1},
-                        emphasis:{label:{show:true,color:'#854d0e'},itemStyle:{areaColor:hoverColor}},
+                        emphasis:{label:{show:true,color:'#854d0e',fontWeight:'bold'},itemStyle:{areaColor:hoverColor}},
                         data:generateMapData(),selectedMode:false}]
                 };
             } else {
-                // Province view: show annotations
                 const annos=annotations[provinceName]||{markers:[],routes:[],notes:[]};
                 const markerData=annos.markers?.map(m=>({
                     name:m.label,value:[...m.coord,100],
@@ -447,7 +486,8 @@ const App=()=>{
 
                 option={
                     backgroundColor:'transparent',
-                    tooltip:{trigger:'item',backgroundColor:'rgba(255,255,255,.96)',borderColor:'#e2e8f0',borderWidth:1,padding:12,textStyle:{color:'#1e293b'},
+                    tooltip:{trigger:'item',backgroundColor:'rgba(255,255,255,.97)',borderColor:'#e2e8f0',borderWidth:1,padding:12,textStyle:{color:'#1e293b'},
+                        extraCssText:'border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.1);',
                         formatter:p=>{
                             const d=p.data?.tooltipData;
                             if(!d)return p.name;
@@ -467,7 +507,6 @@ const App=()=>{
                             showEffectOn:'render',rippleEffect:{brushType:'fill',scale:2},zlevel:2}
                     ]
                 };
-                // Add note labels as graphic elements
                 if(annos.notes?.length){
                     option.graphic=annos.notes.map(n=>({
                         type:'text',left:n.x||100,top:n.y||100,
@@ -484,7 +523,6 @@ const App=()=>{
             chart.off('click');
             chart.on('click',(params)=>{
                 if(mode==='province'){
-                    // In province mode, clicking on the map adds annotations
                     if(annoTool&&editMode){
                         const coord=chart.convertFromPixel('geo',[params.event.offsetX,params.event.offsetY]);
                         if(!coord||!isFinite(coord[0]))return;
@@ -492,7 +530,6 @@ const App=()=>{
                     }
                     return;
                 }
-                // China mode: show sidebar for ANY province
                 if(params.componentType==='series'&&params.seriesType==='map'){
                     setSelName(params.name);
                 }
@@ -504,17 +541,7 @@ const App=()=>{
                     setCurProvince(params.name);setSelName(params.name);setViewMode('province');
                 }
             });
-        }catch(e){
-            console.error('Map error:',e);
-            setLoading(false);
-            if(mode==='province'&&provinceName){
-                alert(`${provinceName}地图加载失败，已返回全国地图。`);
-                setViewMode('china');
-                setCurProvince(null);
-            }else{
-                alert('地图数据加载失败，请检查网络后刷新页面重试。');
-            }
-        }
+        }catch(e){console.error('Map error:',e);setLoading(false);}
     };
 
     const addAnnotation=(prov,coord,px,py)=>{
@@ -533,7 +560,6 @@ const App=()=>{
             next[prov]=a;
             return next;
         });
-        // Refresh map
         setTimeout(()=>loadMap('province',prov),50);
     };
 
@@ -554,17 +580,15 @@ const App=()=>{
     useEffect(()=>{if(marketType==='energy'){setViewMode('china');setCurProvince(null);setSelName(null);}},[energyView]);
     useEffect(()=>{const h=()=>chartRef.current?.resize();window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h);},[]);
 
-    // Pie
     useEffect(()=>{
         const entry=selName&&marketType==='resource'?resData[selName]:null;
         if(!pieRef.current||!entry?.resourcePieData?.length){if(pieInst.current){pieInst.current.dispose();pieInst.current=null;}return;}
         if(!pieInst.current)pieInst.current=echarts.init(pieRef.current);
         pieInst.current.clear();
-        pieInst.current.setOption({tooltip:{trigger:'item'},series:[{type:'pie',radius:['38%','68%'],itemStyle:{borderRadius:5,borderColor:'#fff',borderWidth:2},label:{formatter:'{b}: {d}%',color:'#0f172a',fontSize:11},data:entry.resourcePieData}]});
+        pieInst.current.setOption({tooltip:{trigger:'item',extraCssText:'border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.08);'},series:[{type:'pie',radius:['38%','68%'],itemStyle:{borderRadius:5,borderColor:'#fff',borderWidth:2},label:{formatter:'{b}: {d}%',color:'#0f172a',fontSize:11},data:entry.resourcePieData}]});
         pieInst.current.resize();
     },[selName,resData,marketType]);
 
-    // Resize
     useEffect(()=>{
         if(!isResizing)return;
         const move=e=>setSidebarW(Math.min(Math.max(resizeRef.current.w+e.clientX-resizeRef.current.x,220),440));
@@ -635,7 +659,18 @@ const App=()=>{
         });
     };
 
-    // Export
+    // ★ NEW: Remove tag
+    const removeTag=(name,tagIdx)=>{
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setter=setters[activeDataKey];
+        if(!setter)return;
+        setter(prev=>{
+            const entry={...(prev[name]||makeDefaultEntry(name))};
+            entry.tags=(entry.tags||[]).filter((_,i)=>i!==tagIdx);
+            return{...prev,[name]:entry};
+        });
+    };
+
     const handleExportHTML=()=>{
         const html=document.documentElement.outerHTML;
         const blob=new Blob([`<!DOCTYPE html>${html}`],{type:'text/html;charset=utf-8'});
@@ -669,15 +704,19 @@ const App=()=>{
         files.forEach(f=>{const r=new FileReader();r.onload=e=>{setGridUploads(p=>({...p,[prov]:[...(p[prov]||[]),{id:`${f.name}-${Date.now()}`,src:e.target.result,name:f.name,updatedAt:new Date().toISOString()}]}));};r.readAsDataURL(f);});
     };
 
-    // ─── Derived Vars ───
+    // ─── Derived ───
     const tabs=[
-        {key:'frequency',label:'二次调频',icon:<Activity size={14}/>,accent:'blue'},
-        {key:'energy',label:'电能量',icon:<BatteryC size={14}/>,accent:'indigo'},
-        {key:'capacity',label:'容量电价',icon:<DollarSign size={14}/>,accent:'amber'},
-        {key:'resource',label:'资源禀赋',icon:<Layers size={14}/>,accent:'emerald'}
+        {key:'frequency',label:'二次调频',icon:<Activity size={14}/>,color:'#2563eb'},
+        {key:'energy',label:'电能量',icon:<BatteryC size={14}/>,color:'#4f46e5'},
+        {key:'capacity',label:'容量电价',icon:<DollarSign size={14}/>,color:'#d97706'},
+        {key:'resource',label:'资源禀赋',icon:<Layers size={14}/>,color:'#059669'}
     ];
-    const gradients={frequency:'from-[#001A72] to-[#66D4FF]',energy:'from-[#312e81] to-[#818cf8]',capacity:'from-amber-700 to-yellow-300',resource:'from-emerald-700 to-lime-300'};
-    const mainTitle=viewMode==='province'?`${shortName(curProvince)} 省级详情`:marketType==='frequency'?'二次调频市场热力图':marketType==='capacity'?'容量电价热力图':marketType==='resource'?'资源禀赋热力图':energyView==='price'?'电能量价差热力图':'现货市场进程';
+
+    const mainTitle=viewMode==='province'?`${shortName(curProvince)} 省级详情`
+        :marketType==='frequency'?'二次调频市场热力图'
+        :marketType==='capacity'?'容量电价热力图'
+        :marketType==='resource'?'资源禀赋热力图'
+        :energyView==='price'?'电能量价差热力图':'现货市场进程';
 
     const selEntry=useMemo(()=>{
         if(!selName)return null;
@@ -688,45 +727,55 @@ const App=()=>{
     const provAnnos=curProvince?annotations[curProvince]||{markers:[],routes:[],notes:[]}:{markers:[],routes:[],notes:[]};
     const provGrids=(prov)=>[...(gridUploads[prov]||[])];
 
+    // ─── Active tab color ───
+    const activeTab=tabs.find(t=>t.key===marketType);
+    const accentColor=activeTab?.color||'#2563eb';
+
 
     // ═══ RENDER ═══
     return(
-    <div className="flex flex-col h-screen bg-[#eef1f5] overflow-hidden relative">
+    <div className="flex flex-col h-screen overflow-hidden relative" style={{background:'linear-gradient(135deg,#eef1f5 0%,#e4e9f0 50%,#eef1f5 100%)'}}>
+
         {/* ── Header ── */}
-        <header className="glass border-b border-slate-200/80 px-5 py-2.5 flex items-center justify-between z-20 shrink-0">
+        <header className="glass border-b px-5 py-2.5 flex items-center justify-between z-20 shrink-0" style={{borderColor:'var(--glass-border)'}}>
             <div className="flex items-center gap-3">
                 {viewMode==='province'?(
-                    <button onClick={handleBack} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"><ArrowLeft size={15}/> 返回全国</button>
+                    <button onClick={handleBack} className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-all hover:shadow-sm"><ArrowLeft size={15}/> 返回全国</button>
                 ):(
-                    <div className={`bg-gradient-to-br ${gradients[marketType]} p-2 rounded-xl text-white shadow-md`}><Activity size={20}/></div>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg" style={{background:`linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`}}>
+                        <Activity size={18}/>
+                    </div>
                 )}
                 <div>
-                    <h1 className="text-[15px] font-bold text-slate-900 leading-tight">{mainTitle}</h1>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{viewMode==='province'?'点击地图添加标注（编辑模式）':'单击查看详情 · 双击进入省级地图'}</div>
+                    <h1 className="text-[15px] font-bold text-slate-900 leading-tight tracking-tight">{mainTitle}</h1>
+                    <div className="text-[10px] text-slate-400 mt-0.5 tracking-wide">{viewMode==='province'?'点击地图添加标注（编辑模式）':'单击查看详情 · 双击进入省级地图'}</div>
                 </div>
             </div>
             <div className="flex items-center gap-2">
-                <button onClick={()=>setEditMode(!editMode)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${editMode?'bg-slate-900 text-white border-slate-800':'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}>
+                <button onClick={()=>setEditMode(!editMode)} className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all ${editMode?'text-white border-transparent shadow-md':'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:shadow-sm'}`}
+                    style={editMode?{background:`linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`}:{}}>
                     {editMode?<><Edit3 size={12}/> 编辑中</>:<><Eye size={12}/> 查看</>}
                 </button>
                 {editMode&&<>
-                    <button onClick={handleExportHTML} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-sm"><Download size={12}/> HTML</button>
-                    <button onClick={()=>setShowArchive(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:border-slate-300"><ArchiveIc size={12}/></button>
+                    <button onClick={handleExportHTML} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-white hover:bg-slate-700 shadow-sm transition-all"><Download size={12}/> HTML</button>
+                    <button onClick={()=>setShowArchive(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:border-slate-300 transition-all"><ArchiveIc size={12}/></button>
                 </>}
             </div>
         </header>
 
         {/* ── Tabs ── */}
-        <div className="glass border-b border-slate-200/60 px-5 flex items-center gap-0.5 shrink-0 z-10">
+        <div className="glass border-b px-5 flex items-center gap-1 shrink-0 z-10" style={{borderColor:'var(--glass-border)'}}>
             {tabs.map(t=>(
-                <button key={t.key} onClick={()=>setMarketType(t.key)} className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${marketType===t.key?`text-${t.accent}-600 border-current`:'text-slate-400 border-transparent hover:text-slate-600'}`}>
+                <button key={t.key} onClick={()=>setMarketType(t.key)}
+                    className={`tab-btn flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold transition-all ${marketType===t.key?'active':''}`}
+                    style={{color:marketType===t.key?t.color:'#94a3b8'}}>
                     {t.icon} {t.label}
                 </button>
             ))}
             {marketType==='energy'&&(
-                <div className="ml-3 flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5">
-                    <button onClick={()=>setEnergyView('price')} className={`px-3 py-1 rounded-md text-[11px] font-bold ${energyView==='price'?'bg-white text-indigo-700 shadow-sm':'text-slate-500'}`}>价差地图</button>
-                    <button onClick={()=>setEnergyView('spot-progress')} className={`px-3 py-1 rounded-md text-[11px] font-bold ${energyView==='spot-progress'?'bg-white text-indigo-700 shadow-sm':'text-slate-500'}`}>现货进程</button>
+                <div className="ml-3 flex items-center gap-0.5 bg-slate-100/80 rounded-lg p-0.5">
+                    <button onClick={()=>setEnergyView('price')} className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${energyView==='price'?'bg-white text-indigo-700 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>价差地图</button>
+                    <button onClick={()=>setEnergyView('spot-progress')} className={`px-3 py-1 rounded-md text-[11px] font-bold transition-all ${energyView==='spot-progress'?'bg-white text-indigo-700 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>现货进程</button>
                 </div>
             )}
         </div>
@@ -735,21 +784,137 @@ const App=()=>{
         <div className="flex-1 relative w-full h-full overflow-hidden">
             <div className="w-full h-full flex">
                 {/* Left Sidebar */}
-                <div className="absolute left-0 top-0 bottom-0 z-40 glass border-r border-slate-200/80 shadow-lg transition-all duration-300 flex flex-col overflow-hidden" style={{width:sidebarOpen?sidebarW:0,transform:sidebarOpen?'translateX(0)':'translateX(-100%)'}}>
-                    <div className="p-3 border-b border-slate-100/80 shrink-0">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sidebarTitle}</span>
+                <div className="absolute left-0 top-0 bottom-0 z-40 glass border-r shadow-lg transition-all duration-300 flex flex-col overflow-hidden" style={{width:sidebarOpen?sidebarW:0,transform:sidebarOpen?'translateX(0)':'translateX(-100%)',borderColor:'var(--glass-border)'}}>
+                    <div className="p-3 border-b border-slate-100/80 shrink-0 flex items-center gap-2">
+                        <div className="w-1.5 h-4 rounded-full" style={{background:accentColor}}/>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{sidebarTitle}</span>
                     </div>
                     <div className="p-3 overflow-y-auto flex-1 space-y-4">
                         {viewMode==='china'&&(
-                            <div className="space-y-3 fade-in">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-24 w-2.5 rounded-full shadow-inner" style={{background:`linear-gradient(to bottom, ${currentPalette[currentPalette.length-1]}, ${currentPalette[Math.floor(currentPalette.length/2)]}, ${currentPalette[0]})`}}></div>
-                                    <div className="flex flex-col justify-between h-24 text-[11px] text-slate-500">
-                                        <span>高</span><span>中</span><span>低</span>
+                            <div className="space-y-4 fade-in">
+                                {/* ★ IMPROVED LEGEND per view */}
+                                {marketType==='frequency'&&(
+                                    <>
+                                    <LegendBar
+                                        palette={currentPalette}
+                                        min={freqRange.min} max={freqRange.max}
+                                        unit="万"
+                                        label="月度调频市场份额"
+                                        ticks={[
+                                            {pos:'0%',text:`${freqRange.min}万元`},
+                                            {pos:'33%',text:`${Math.round(freqRange.min+(freqRange.max-freqRange.min)/3)}万`},
+                                            {pos:'66%',text:`${Math.round(freqRange.min+2*(freqRange.max-freqRange.min)/3)}万`},
+                                            {pos:'100%',text:`${freqRange.max}万元`}
+                                        ]}
+                                    />
+                                    <div className="space-y-1.5">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">潜在开放梯队</div>
+                                        <div className="space-y-1">
+                                            {[{color:'#52525b',label:'第一梯队',desc:'华东核心省份'},{color:'#9ca3af',label:'第二梯队',desc:'中西部重点省'},{color:'#e5e7eb',label:'第三梯队',desc:'远期关注'}].map(t=>(
+                                                <div key={t.label} className="flex items-center gap-2 py-1">
+                                                    <div className="w-3 h-3 rounded" style={{backgroundColor:t.color}}/>
+                                                    <span className="text-[11px] text-slate-600 font-medium">{t.label}</span>
+                                                    <span className="text-[10px] text-slate-400">{t.desc}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        覆盖 {Object.keys(freqData).length} 省份 · 数据越深蓝色表示月度调频市场份额越大
+                                    </div>
+                                    </>
+                                )}
+
+                                {marketType==='energy'&&energyView==='price'&&(
+                                    <>
+                                    <LegendBar
+                                        palette={currentPalette}
+                                        min={energyRange.min} max={energyRange.max}
+                                        label="峰谷价差（元/kWh）"
+                                        ticks={[
+                                            {pos:'0%',text:`${energyRange.min.toFixed(2)}`},
+                                            {pos:'50%',text:`${((energyRange.min+energyRange.max)/2).toFixed(2)}`},
+                                            {pos:'100%',text:`${energyRange.max.toFixed(2)}`}
+                                        ]}
+                                    />
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-[11px]"><div className="w-3 h-3 rounded bg-indigo-100 border border-indigo-300"/><span className="text-slate-600">市场区间（测算）</span></div>
+                                        <div className="flex items-center gap-2 text-[11px]"><div className="w-3 h-3 rounded bg-indigo-500 border border-indigo-600"/><span className="text-slate-600">实测数据</span></div>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        覆盖 {Object.keys(energyEntries).length} 省份 · 颜色越深表示价差越大，储能套利空间越高
+                                    </div>
+                                    </>
+                                )}
+
+                                {marketType==='energy'&&energyView==='spot-progress'&&(
+                                    <>
+                                    <div className="space-y-2">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">现货市场阶段</div>
+                                        {[{color:'#3b82f6',label:'正式运行',desc:'机制成熟'},{color:'#60a5fa',label:'连续结算试运行',desc:'持续优化'},{color:'#93c5fd',label:'试运行',desc:'能力建设'},{color:'#e2e8f0',label:'未开展/待更新',desc:'暂无进展'}].map(s=>(
+                                            <div key={s.label} className="flex items-center gap-2 py-1">
+                                                <div className="w-3 h-3 rounded" style={{backgroundColor:s.color}}/>
+                                                <span className="text-[11px] text-slate-700 font-medium">{s.label}</span>
+                                                <span className="text-[10px] text-slate-400">{s.desc}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        蓝色越深表示现货市场建设进度越领先
+                                    </div>
+                                    </>
+                                )}
+
+                                {marketType==='capacity'&&(
+                                    <>
+                                    <LegendBar
+                                        palette={currentPalette}
+                                        min={capRange.min} max={capRange.max}
+                                        label="容量补偿（元/kW·年）"
+                                        ticks={[
+                                            {pos:'0%',text:`${capRange.min}`},
+                                            {pos:'33%',text:`${Math.round(capRange.min+(capRange.max-capRange.min)/3)}`},
+                                            {pos:'66%',text:`${Math.round(capRange.min+2*(capRange.max-capRange.min)/3)}`},
+                                            {pos:'100%',text:`${capRange.max}`}
+                                        ]}
+                                    />
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        覆盖 {Object.keys(capData).length} 省份 · 颜色越深（棕色系）表示容量补偿单价越高
+                                    </div>
+                                    </>
+                                )}
+
+                                {marketType==='resource'&&(
+                                    <>
+                                    <div className="space-y-2">
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">选择指标</div>
+                                        <select value={resMetric} onChange={e=>setResMetric(e.target.value)} className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs focus:outline-none ef">
+                                            {resMetrics.map(k=><option key={k} value={k}>{RES_LABELS[k]||k}</option>)}
+                                        </select>
+                                    </div>
+                                    <LegendBar
+                                        palette={currentPalette}
+                                        min={resRange.min} max={resRange.max}
+                                        label={`${RES_LABELS[resMetric]||resMetric} 装机`}
+                                        ticks={[
+                                            {pos:'0%',text:`${resRange.min} GW`},
+                                            {pos:'50%',text:`${((resRange.min+resRange.max)/2).toFixed(0)} GW`},
+                                            {pos:'100%',text:`${resRange.max} GW`}
+                                        ]}
+                                    />
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        覆盖 {Object.keys(resData).length} 省份 · 绿色越深表示该类电源装机规模越大
+                                    </div>
+                                    {editMode&&<>
+                                        <textarea value={resInput} onChange={e=>setResInput(e.target.value)} placeholder="省份,指标,数值（如：河北省,wind,35）" className="w-full h-14 text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus:outline-none ef" rows={2}/>
+                                        <button onClick={()=>{if(!resInput.trim())return;resInput.split('\n').filter(Boolean).forEach(l=>{const[p,k,v]=l.split(/[,，]/);const n=parseFloat(v);if(p?.trim()&&k?.trim()&&!isNaN(n))setResEndow(pr=>({...pr,[p.trim()]:{...(pr[p.trim()]||{}),[k.trim()]:n}}));});setResInput('');}} className="w-full bg-emerald-600 text-white text-[11px] font-bold py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">应用数据</button>
+                                    </>}
+                                    </>
+                                )}
+
+                                {/* Custom color scale editor (edit mode) */}
                                 {editMode&&(
-                                    <div className="space-y-1.5 bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                                    <div className="space-y-1.5 bg-slate-50/80 rounded-lg p-2.5 border border-slate-100">
                                         <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1"><Palette size={11}/>自定义色阶</div>
                                         <div className="flex gap-1 flex-wrap">
                                             {currentPalette.map((c,i)=>(
@@ -758,25 +923,6 @@ const App=()=>{
                                                 }} title={`色阶 ${i+1}`}/>
                                             ))}
                                         </div>
-                                    </div>
-                                )}
-                                {marketType==='frequency'&&(
-                                    <div className="space-y-1 text-[11px] text-slate-500">
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase">潜在梯队</div>
-                                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded bg-[#52525b]"></div>第一梯队</div>
-                                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded bg-[#9ca3af]"></div>第二梯队</div>
-                                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded bg-[#e5e7eb]"></div>第三梯队</div>
-                                    </div>
-                                )}
-                                {marketType==='resource'&&(
-                                    <div className="space-y-2">
-                                        <select value={resMetric} onChange={e=>setResMetric(e.target.value)} className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none">
-                                            {resMetrics.map(k=><option key={k} value={k}>{RES_LABELS[k]||k}</option>)}
-                                        </select>
-                                        {editMode&&<>
-                                            <textarea value={resInput} onChange={e=>setResInput(e.target.value)} placeholder="省份,指标,数值" className="w-full h-14 text-xs rounded-md border border-slate-200 bg-white px-2 py-1 focus:outline-none" rows={2}/>
-                                            <button onClick={()=>{if(!resInput.trim())return;resInput.split('\n').filter(Boolean).forEach(l=>{const[p,k,v]=l.split(/[,，]/);const n=parseFloat(v);if(p?.trim()&&k?.trim()&&!isNaN(n))setResEndow(pr=>({...pr,[p.trim()]:{...(pr[p.trim()]||{}),[k.trim()]:n}}));});setResInput('');}} className="w-full bg-emerald-600 text-white text-[11px] font-bold py-1.5 rounded-md hover:bg-emerald-700">应用</button>
-                                        </>}
                                     </div>
                                 )}
                             </div>
@@ -789,7 +935,7 @@ const App=()=>{
                                 <div className="grid grid-cols-3 gap-1.5">
                                     {[{key:'marker',icon:<MapPin size={14}/>,label:'标注点'},{key:'route',icon:<Route size={14}/>,label:'路线'},{key:'note',icon:<StickyNote size={14}/>,label:'备注'}].map(t=>(
                                         <button key={t.key} onClick={()=>{setAnnoTool(annoTool===t.key?null:t.key);setRouteStart(null);}}
-                                            className={`tool-btn flex flex-col items-center gap-1 py-2 rounded-lg text-[10px] font-bold border transition-all ${annoTool===t.key?'active bg-blue-50 text-blue-700 border-blue-200':'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+                                            className={`tool-btn flex flex-col items-center gap-1 py-2.5 rounded-lg text-[10px] font-bold border transition-all ${annoTool===t.key?'active bg-blue-50 text-blue-700 border-blue-200':'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
                                             {t.icon}<span>{t.label}</span>
                                         </button>
                                     ))}
@@ -797,7 +943,7 @@ const App=()=>{
                                 {annoTool&&(
                                     <div className="space-y-2 bg-blue-50/60 border border-blue-100 rounded-lg p-2.5 fade-in">
                                         <div className="text-[10px] text-blue-700 font-bold">{annoTool==='marker'?'点击地图放置标注':annoTool==='route'?routeStart?'再次点击确定路线终点':'点击地图选择路线起点':'点击地图放置备注'}</div>
-                                        <input value={annoLabel} onChange={e=>setAnnoLabel(e.target.value)} placeholder="名称/描述" className="w-full text-xs border border-blue-200 rounded px-2 py-1 bg-white focus:outline-none ef"/>
+                                        <input value={annoLabel} onChange={e=>setAnnoLabel(e.target.value)} placeholder="名称/描述" className="w-full text-xs border border-blue-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none ef"/>
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[10px] text-slate-500">颜色:</span>
                                             <input type="color" value={annoColor} onChange={e=>setAnnoColor(e.target.value)}/>
@@ -809,26 +955,25 @@ const App=()=>{
                                         </div>
                                     </div>
                                 )}
-                                {/* Existing annotations list */}
                                 {(provAnnos.markers?.length>0||provAnnos.routes?.length>0||provAnnos.notes?.length>0)&&(
                                     <div className="space-y-2">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase">已有标注</div>
                                         {provAnnos.markers?.map(m=>(
                                             <div key={m.id} className="flex items-center justify-between text-[11px] bg-white border border-slate-100 rounded-lg px-2.5 py-1.5">
                                                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor:m.color}}/><span className="text-slate-700">{m.label}</span></div>
-                                                <button onClick={()=>removeAnnotation(curProvince,'markers',m.id)} className="text-slate-300 hover:text-red-500"><Trash size={12}/></button>
+                                                <button onClick={()=>removeAnnotation(curProvince,'markers',m.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash size={12}/></button>
                                             </div>
                                         ))}
                                         {provAnnos.routes?.map(r=>(
                                             <div key={r.id} className="flex items-center justify-between text-[11px] bg-white border border-slate-100 rounded-lg px-2.5 py-1.5">
                                                 <div className="flex items-center gap-1.5"><div className="w-4 h-0.5 rounded" style={{backgroundColor:r.color}}/><span className="text-slate-700">{r.label}</span></div>
-                                                <button onClick={()=>removeAnnotation(curProvince,'routes',r.id)} className="text-slate-300 hover:text-red-500"><Trash size={12}/></button>
+                                                <button onClick={()=>removeAnnotation(curProvince,'routes',r.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash size={12}/></button>
                                             </div>
                                         ))}
                                         {provAnnos.notes?.map(n=>(
                                             <div key={n.id} className="flex items-center justify-between text-[11px] bg-white border border-slate-100 rounded-lg px-2.5 py-1.5">
                                                 <div className="flex items-center gap-1.5"><StickyNote size={11} cl="text-slate-400"/><span className="text-slate-700">{n.text}</span></div>
-                                                <button onClick={()=>removeAnnotation(curProvince,'notes',n.id)} className="text-slate-300 hover:text-red-500"><Trash size={12}/></button>
+                                                <button onClick={()=>removeAnnotation(curProvince,'notes',n.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash size={12}/></button>
                                             </div>
                                         ))}
                                     </div>
@@ -839,74 +984,85 @@ const App=()=>{
                             <div className="text-xs text-slate-400 bg-slate-50 rounded-lg p-3 border border-slate-100">切换到编辑模式可在省级地图上添加标注点、输送路线和文字备注。</div>
                         )}
                     </div>
-                    {sidebarOpen&&<div className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-blue-200/50" onMouseDown={e=>{resizeRef.current={x:e.clientX,w:sidebarW};setIsResizing(true);}}/>}
+                    {sidebarOpen&&<div className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize hover:bg-blue-200/50 transition-colors" onMouseDown={e=>{resizeRef.current={x:e.clientX,w:sidebarW};setIsResizing(true);}}/>}
                 </div>
 
-                <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="absolute top-3 z-30 bg-white/90 backdrop-blur p-1.5 rounded-r-lg shadow-md border border-l-0 border-slate-200 text-slate-500 hover:text-slate-800 transition-all" style={{left:sidebarOpen?sidebarW:0}}>
+                <button onClick={()=>setSidebarOpen(!sidebarOpen)} className="absolute top-3 z-30 bg-white/90 backdrop-blur-sm p-1.5 rounded-r-lg shadow-md border border-l-0 border-slate-200 text-slate-500 hover:text-slate-800 transition-all hover:shadow-lg" style={{left:sidebarOpen?sidebarW:0}}>
                     {sidebarOpen?<ChevronL size={14}/>:<ChevronR size={14}/>}
                 </button>
 
                 {/* Map */}
                 <div className="flex-1 relative">
-                    {loading&&<div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2 bg-[#eef1f5]/80 z-50"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div><span className="text-[11px]">加载中…</span></div>}
+                    {loading&&(
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-50" style={{background:'rgba(240,242,246,.85)',backdropFilter:'blur(4px)'}}>
+                            <div className="w-8 h-8 rounded-full border-[3px] border-t-transparent animate-spin" style={{borderColor:`${accentColor}40`,borderTopColor:'transparent',borderRightColor:accentColor}}/>
+                            <span className="text-xs text-slate-400 tracking-wide">加载地图数据…</span>
+                        </div>
+                    )}
                     <div ref={mapRef} className="w-full h-full cursor-pointer"/>
                 </div>
             </div>
 
             {/* ── Right Detail Panel ── */}
-            <div className={`absolute right-0 top-0 bottom-0 z-30 w-full md:w-[440px] bg-white shadow-2xl md:border-l border-slate-200 transform transition-transform duration-300 flex flex-col ${selName?'translate-x-0':'translate-x-full'}`}>
+            <div className={`detail-panel absolute right-0 top-0 bottom-0 z-30 w-full md:w-[440px] bg-white md:border-l border-slate-200 transform transition-transform duration-300 ease-out flex flex-col ${selName?'translate-x-0':'translate-x-full'}`}>
                 {selName&&selEntry&&(
                     <>
-                    <div className="p-4 border-b border-slate-100 flex justify-between items-start shrink-0 bg-gradient-to-br from-slate-50 to-white">
-                        <div className="flex-1 space-y-2">
+                    <div className="p-4 border-b border-slate-100 flex justify-between items-start shrink-0" style={{background:'linear-gradient(135deg,#f8fafc,#ffffff)'}}>
+                        <div className="flex-1 space-y-2.5">
                             {editMode?(
-                                <input value={selEntry.title||''} onChange={e=>updateEntry(selName,'title',e.target.value)} className="text-lg font-bold text-slate-900 border border-slate-200 rounded-lg px-2 py-1 w-full focus:outline-none ef"/>
+                                <input value={selEntry.title||''} onChange={e=>updateEntry(selName,'title',e.target.value)} className="text-lg font-bold text-slate-900 border border-slate-200 rounded-lg px-2.5 py-1.5 w-full focus:outline-none ef"/>
                             ):(
-                                <h2 className="text-lg font-bold text-slate-800">{selEntry.title||selName}</h2>
+                                <h2 className="text-lg font-bold text-slate-800 tracking-tight">{selEntry.title||selName}</h2>
                             )}
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1.5 items-center">
                                 {editMode?(
-                                    <input value={selEntry.totalVolume||''} onChange={e=>updateEntry(selName,'totalVolume',e.target.value)} className="text-xs border border-blue-200 rounded px-2 py-0.5 bg-blue-50 text-blue-700 font-bold focus:outline-none ef" placeholder="总量"/>
+                                    <input value={selEntry.totalVolume||''} onChange={e=>updateEntry(selName,'totalVolume',e.target.value)} className="text-xs border rounded-lg px-2.5 py-1 font-bold focus:outline-none ef" style={{borderColor:`${accentColor}40`,background:`${accentColor}08`,color:accentColor}} placeholder="总量"/>
                                 ):(
-                                    selEntry.totalVolume&&<span className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">{selEntry.totalVolume}</span>
+                                    selEntry.totalVolume&&<span className="px-2.5 py-1 rounded-lg text-[11px] font-bold" style={{background:`${accentColor}10`,color:accentColor,border:`1px solid ${accentColor}25`}}>{selEntry.totalVolume}</span>
                                 )}
-                                {(selEntry.tags||[]).map((t,i)=><span key={i} className="px-2 py-0.5 rounded text-[11px] bg-slate-100 text-slate-600 border border-slate-200">{t}</span>)}
-                                {editMode&&<button onClick={()=>{const t=prompt('输入标签');if(t)addTag(selName,t);}} className="px-1.5 py-0.5 rounded text-[11px] bg-slate-50 text-slate-400 border border-dashed border-slate-300 hover:border-blue-300 hover:text-blue-500">+标签</button>}
+                                {/* ★ Tags with delete */}
+                                {(selEntry.tags||[]).map((t,i)=>(
+                                    <span key={i} className="tag-chip bg-slate-100 text-slate-600 border border-slate-200">
+                                        {t}
+                                        <span className="tag-x text-slate-400 hover:text-red-500" onClick={(e)=>{e.stopPropagation();removeTag(selName,i);}}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                        </span>
+                                    </span>
+                                ))}
+                                {editMode&&<button onClick={()=>{const t=prompt('输入标签');if(t)addTag(selName,t);}} className="tag-chip bg-slate-50 text-slate-400 border border-dashed border-slate-300 hover:border-blue-300 hover:text-blue-500 cursor-pointer">+ 标签</button>}
                             </div>
                         </div>
-                        <button onClick={closeSidebar} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 ml-2"><XIcon size={18}/></button>
+                        <button onClick={closeSidebar} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 ml-2 transition-colors"><XIcon size={18}/></button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {/* Map Value + Color */}
                         {editMode&&marketType!=='resource'&&(
                             <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
                                 {!(marketType==='energy'&&energyView==='spot-progress')&&(
                                     <div className="flex-1 space-y-1">
                                         <div className="text-[10px] font-bold text-slate-400 uppercase">地图数值</div>
-                                        <input type="number" value={selEntry.mapValue||0} onChange={e=>updateEntry(selName,'mapValue',e.target.value)} className="w-full border border-slate-200 rounded px-2 py-1 text-sm font-bold text-slate-900 bg-white focus:outline-none ef"/>
+                                        <input type="number" value={selEntry.mapValue||0} onChange={e=>updateEntry(selName,'mapValue',e.target.value)} className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-900 bg-white focus:outline-none ef"/>
                                     </div>
                                 )}
                                 <div className="space-y-1">
                                     <div className="text-[10px] font-bold text-slate-400 uppercase">{marketType==='energy'&&energyView==='spot-progress'?'进程填色':'自定义颜色'}</div>
                                     <div className="flex items-center gap-1.5">
                                         <input type="color" value={selEntry.color||currentPalette[Math.floor(currentPalette.length/2)]} onChange={e=>updateEntry(selName,'color',e.target.value)}/>
-                                        {selEntry.color&&<button onClick={()=>updateEntry(selName,'color',null)} className="text-[10px] text-slate-400 hover:text-red-500">重置</button>}
+                                        {selEntry.color&&<button onClick={()=>updateEntry(selName,'color',null)} className="text-[10px] text-slate-400 hover:text-red-500 transition-colors">重置</button>}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Description */}
-                        <div className="rounded-xl p-3.5 border border-slate-100 bg-slate-50/50">
-                            <div className="flex items-center gap-1.5 font-semibold mb-2 text-slate-600 text-sm"><Coins size={16}/>概览</div>
+                        <div className="rounded-xl p-4 border border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-1.5 font-semibold mb-2.5 text-slate-600 text-sm"><Coins size={16}/>概览</div>
                             {marketType==='energy'&&energyView==='spot-progress'&&(
                                 <div className="mb-2.5">
                                     <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">现货市场阶段</div>
                                     {editMode?(
                                         <input value={selEntry.spotStage||''} onChange={e=>updateEntry(selName,'spotStage',e.target.value)} placeholder="如：连续结算试运行 / 正式运行" className="w-full border border-slate-200 rounded-lg px-2.5 py-2 text-sm font-semibold text-slate-700 focus:outline-none ef bg-white"/>
                                     ):(
-                                        <div className="inline-flex px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">{selEntry.spotStage||'待更新'}</div>
+                                        <div className="inline-flex px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold">{selEntry.spotStage||'待更新'}</div>
                                     )}
                                 </div>
                             )}
@@ -917,15 +1073,13 @@ const App=()=>{
                             )}
                         </div>
 
-                        {/* Pie chart for resource */}
                         {selEntry.resourcePieData&&<div ref={pieRef} className="w-full h-48"/>}
 
-                        {/* Grid images */}
                         {provGrids(selName).length>0&&(
                             <div className="space-y-2">
                                 <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><Layers size={11}/>网架/规划</div>
                                 <div className="grid gap-2 sm:grid-cols-2">{provGrids(selName).map(item=>(
-                                    <div key={item.id} className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                                    <div key={item.id} className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden hover:shadow-md transition-shadow">
                                         <img src={item.src} alt="" className="w-full h-28 object-cover cursor-pointer" onClick={()=>setPreviewImg(item)}/>
                                         <div className="text-[10px] text-slate-500 px-2 py-1 truncate">{item.name}</div>
                                     </div>
@@ -933,13 +1087,12 @@ const App=()=>{
                             </div>
                         )}
                         {editMode&&(
-                            <label className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors">
+                            <label className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors">
                                 <Upload size={13}/>上传网架/规划图
                                 <input type="file" accept="image/*" multiple onChange={e=>handleGridUpload(selName,Array.from(e.target.files||[]))} className="hidden"/>
                             </label>
                         )}
 
-                        {/* Details */}
                         <div className="space-y-2">
                             <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><BarChart3 size={11}/>详细数据</div>
                             <div className="bg-slate-50 rounded-xl border border-slate-100 divide-y divide-slate-100">
@@ -948,7 +1101,7 @@ const App=()=>{
                                         {editMode?(
                                             <div className="flex items-center gap-1.5">
                                                 <input value={item.label} onChange={e=>updateEntry(selName,`details.${idx}.label`,e.target.value)} className="flex-1 border border-slate-200 rounded px-2 py-0.5 text-[11px] text-slate-500 bg-white focus:outline-none ef" placeholder="字段名"/>
-                                                <button onClick={()=>removeDetail(selName,idx)} className="text-slate-300 hover:text-red-500"><Trash size={12}/></button>
+                                                <button onClick={()=>removeDetail(selName,idx)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash size={12}/></button>
                                             </div>
                                         ):(
                                             <span className="text-[11px] text-slate-400">{item.label}</span>
@@ -956,12 +1109,12 @@ const App=()=>{
                                         {editMode?(
                                             <input value={item.value} onChange={e=>updateEntry(selName,`details.${idx}.value`,e.target.value)} className="border border-slate-200 rounded px-2 py-1 text-sm bg-white focus:outline-none ef"/>
                                         ):(
-                                            <span className="text-sm text-slate-800 pl-2 border-l-2 border-slate-200">{item.value}</span>
+                                            <span className="text-sm text-slate-800 pl-2.5 border-l-2 border-slate-200">{item.value}</span>
                                         )}
                                     </div>
                                 ))}
                             </div>
-                            {editMode&&<button onClick={()=>addDetail(selName)} className="flex items-center gap-1 w-full justify-center py-2 rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border border-dashed border-slate-300 hover:border-blue-300 hover:text-blue-600"><Plus size={13}/>添加字段</button>}
+                            {editMode&&<button onClick={()=>addDetail(selName)} className="flex items-center gap-1 w-full justify-center py-2.5 rounded-lg text-xs font-bold bg-slate-50 text-slate-500 border border-dashed border-slate-300 hover:border-blue-300 hover:text-blue-600 transition-colors"><Plus size={13}/>添加字段</button>}
                         </div>
                     </div>
                     </>
@@ -969,28 +1122,31 @@ const App=()=>{
             </div>
         </div>
 
-        {/* ── Archive ── */}
+        {/* ── Archive Modal ── */}
         {showArchive&&(
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={()=>setShowArchive(false)}>
-                <div className="bg-white rounded-2xl shadow-2xl p-5 w-96 space-y-3" onClick={e=>e.stopPropagation()}>
-                    <div className="flex items-center justify-between"><div className="flex items-center gap-2 font-bold text-sm"><ArchiveIc size={16}/>数据存档</div><button onClick={()=>setShowArchive(false)} className="text-slate-400 hover:text-slate-600"><XIcon size={16}/></button></div>
-                    <p className="text-[11px] text-slate-500">导出包含所有自定义数据（各视图数值/颜色/标注/网架图），可分享或下次导入。</p>
-                    <div className="flex gap-2">
-                        <button onClick={handleExportJSON} className="flex-1 bg-slate-900 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-slate-800"><Download size={13}/>导出JSON</button>
-                        <label className="flex-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-lg cursor-pointer hover:border-slate-300 flex items-center justify-center gap-1.5"><Upload size={13}/>导入JSON<input type="file" accept=".json" onChange={handleImportJSON} className="hidden"/></label>
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-96 space-y-4" onClick={e=>e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-sm"><ArchiveIc size={16}/>数据存档</div>
+                        <button onClick={()=>setShowArchive(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><XIcon size={16}/></button>
                     </div>
-                    <button onClick={handleExportHTML} className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 hover:bg-blue-700"><Download size={13}/>导出完整HTML文件</button>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">导出包含所有自定义数据（各视图数值/颜色/标注/网架图），可分享或下次导入恢复。</p>
+                    <div className="flex gap-2">
+                        <button onClick={handleExportJSON} className="flex-1 bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 hover:bg-slate-800 transition-colors shadow-sm"><Download size={13}/>导出JSON</button>
+                        <label className="flex-1 bg-white border border-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl cursor-pointer hover:border-slate-300 flex items-center justify-center gap-1.5 transition-colors"><Upload size={13}/>导入JSON<input type="file" accept=".json" onChange={handleImportJSON} className="hidden"/></label>
+                    </div>
+                    <button onClick={handleExportHTML} className="w-full text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all hover:shadow-md" style={{background:`linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`}}><Download size={13}/>导出完整HTML文件</button>
                 </div>
             </div>
         )}
 
         {/* ── Preview ── */}
         {previewImg&&(
-            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-6" onClick={()=>setPreviewImg(null)}>
-                <div className="bg-white rounded-xl shadow-2xl overflow-hidden max-w-4xl w-full" onClick={e=>e.stopPropagation()}>
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100">
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6" onClick={()=>setPreviewImg(null)}>
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-4xl w-full" onClick={e=>e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                         <span className="text-sm font-semibold text-slate-700">{previewImg.name||'预览'}</span>
-                        <button onClick={()=>setPreviewImg(null)} className="text-slate-400 hover:text-slate-700"><XIcon size={16}/></button>
+                        <button onClick={()=>setPreviewImg(null)} className="text-slate-400 hover:text-slate-700 transition-colors"><XIcon size={16}/></button>
                     </div>
                     <div className="max-h-[80vh] overflow-auto bg-slate-50"><img src={previewImg.src} alt="" className="w-full object-contain"/></div>
                 </div>
@@ -1004,3 +1160,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
+
