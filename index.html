@@ -205,6 +205,15 @@ const fetchGeoJSONWithFallback=async(urls=[])=>{
     }
     throw lastErr||new Error('All GeoJSON sources failed');
 };
+const getEventPixel=(eventObj)=>{
+    if(!eventObj)return null;
+    const xCandidates=[eventObj.offsetX,eventObj?.event?.offsetX,eventObj?.event?.zrX];
+    const yCandidates=[eventObj.offsetY,eventObj?.event?.offsetY,eventObj?.event?.zrY];
+    const x=xCandidates.find(v=>Number.isFinite(v));
+    const y=yCandidates.find(v=>Number.isFinite(v));
+    if(!Number.isFinite(x)||!Number.isFinite(y))return null;
+    return [x,y];
+};
 const missingProvinceGeojson=REQUIRED_PROVINCE_CODES.filter(code=>!EMBEDDED_MAPS.provinces?.[code]);
 if(!EMBEDDED_MAPS.china||missingProvinceGeojson.length){
     console.warn('Embedded map dataset is incomplete.',{hasChina:!!EMBEDDED_MAPS.china,missingProvinceCount:missingProvinceGeojson.length});
@@ -609,9 +618,15 @@ const App=()=>{
             chart.on('click',(params)=>{
                 if(mode==='province'){
                     if(annoTool&&editMode){
-                        const coord=chart.convertFromPixel('geo',[params.event.offsetX,params.event.offsetY]);
-                        if(!coord||!isFinite(coord[0]))return;
-                        addAnnotation(provinceName,coord,params.event.offsetX,params.event.offsetY);
+                        const pixel=getEventPixel(params.event);
+                        if(!pixel)return;
+                        if(annoTool==='note'){
+                            addAnnotation(provinceName,null,pixel[0],pixel[1]);
+                            return;
+                        }
+                        const coord=chart.convertFromPixel({geoIndex:0},pixel);
+                        if(!coord||!isFinite(coord[0])||!isFinite(coord[1]))return;
+                        addAnnotation(provinceName,coord,pixel[0],pixel[1]);
                     }
                     return;
                 }
@@ -639,10 +654,12 @@ const App=()=>{
             const next={...prev};
             const a={...(next[prov]||{markers:[],routes:[],notes:[]})};
             if(annoTool==='marker'){
+                if(!coord||!isFinite(coord[0])||!isFinite(coord[1]))return next;
                 a.markers=[...(a.markers||[]),{id:Date.now(),coord,label:annoLabel||'新标注',color:annoColor,preset:'C',desc:''}];
             } else if(annoTool==='note'){
                 a.notes=[...(a.notes||[]),{id:Date.now(),x:px,y:py,text:annoLabel||'备注',color:annoColor}];
             } else if(annoTool==='route'){
+                if(!coord||!isFinite(coord[0])||!isFinite(coord[1]))return next;
                 if(!routeStart){setRouteStart(coord);return next;}
                 a.routes=[...(a.routes||[]),{id:Date.now(),coords:[routeStart,coord],label:annoLabel||'路线',color:annoColor,width:2.5}];
                 setRouteStart(null);
