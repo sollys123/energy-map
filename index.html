@@ -130,6 +130,23 @@ const REQUIRED_PROVINCE_CODES=Object.values(ADCODE).map(String);
 const ALIAS={'北京':'北京市','天津':'天津市','河北南网':'河北省','冀北':'河北省','山东':'山东省','山西':'山西省','安徽':'安徽省','福建':'福建省','上海':'上海市','江苏':'江苏省','浙江':'浙江省','湖北':'湖北省','湖南':'湖南省','河南':'河南省','江西':'江西省','吉林':'吉林省','黑龙江':'黑龙江省','辽宁':'辽宁省','甘肃':'甘肃省','宁夏':'宁夏回族自治区','青海':'青海省','陕西':'陕西省','新疆':'新疆维吾尔自治区','四川':'四川省','重庆':'重庆市','广东':'广东省','广西':'广西壮族自治区','贵州':'贵州省','云南':'云南省','海南':'海南省','蒙西':'内蒙古自治区','蒙东':'内蒙古自治区'};
 const norm=n=>ALIAS[n]||n;
 const shortName=n=>(n||'').replace(/省|市|自治区|回族|壮族|维吾尔|特别行政区/g,'');
+const resolveProvinceName=(rawName)=>{
+    if(!rawName)return null;
+    if(ADCODE[rawName])return rawName;
+    const normalized=norm(rawName);
+    if(ADCODE[normalized])return normalized;
+    const candidates=[
+        `${rawName}省`,
+        `${rawName}市`,
+        `${rawName}自治区`,
+        `${rawName}特别行政区`
+    ];
+    for(const c of candidates){
+        if(ADCODE[c])return c;
+    }
+    const rawShort=shortName(rawName);
+    return ALL_PROVINCES.find(p=>shortName(p)===rawShort)||null;
+};
 const hoverColor='#fbbf24';
 
 
@@ -599,14 +616,15 @@ const App=()=>{
                     return;
                 }
                 if(params.componentType==='series'&&params.seriesType==='map'){
-                    setSelName(params.name);
+                    setSelName(resolveProvinceName(params.name)||params.name);
                 }
             });
             chart.off('dblclick');
             chart.on('dblclick',(params)=>{
                 if(mode!=='china'||params.componentType!=='series'||params.seriesType!=='map')return;
-                if(ADCODE[params.name]){
-                    setCurProvince(params.name);setSelName(params.name);setViewMode('province');
+                const provinceName=resolveProvinceName(params.name);
+                if(provinceName&&ADCODE[provinceName]){
+                    setCurProvince(provinceName);setSelName(provinceName);setViewMode('province');
                 }
             });
         }catch(e){
