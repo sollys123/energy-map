@@ -237,15 +237,6 @@ const fetchGeoJSONWithFallback=async(urls=[])=>{
     }
     throw lastErr||new Error('All GeoJSON sources failed');
 };
-const getEventPixel=(eventObj)=>{
-    if(!eventObj)return null;
-    const xCandidates=[eventObj.offsetX,eventObj?.event?.offsetX,eventObj?.event?.zrX];
-    const yCandidates=[eventObj.offsetY,eventObj?.event?.offsetY,eventObj?.event?.zrY];
-    const x=xCandidates.find(v=>Number.isFinite(v));
-    const y=yCandidates.find(v=>Number.isFinite(v));
-    if(!Number.isFinite(x)||!Number.isFinite(y))return null;
-    return [x,y];
-};
 const missingProvinceGeojson=REQUIRED_PROVINCE_CODES.filter(code=>!EMBEDDED_MAPS.provinces?.[code]);
 if(!EMBEDDED_MAPS.china||missingProvinceGeojson.length){
     console.warn('Embedded map dataset is incomplete.',{hasChina:!!EMBEDDED_MAPS.china,missingProvinceCount:missingProvinceGeojson.length});
@@ -627,15 +618,15 @@ const App=()=>{
                                 +(d.desc?`<div style="font-size:12px;color:#64748b;">${d.desc}</div>`:'')
                                 +(d.preset?`<div style="font-size:10px;color:#94a3b8;">${MARKER_PRESETS.find(x=>x.type===d.preset)?.label||''}</div>`:'');
                         }},
-                    geo:{map:mapName,roam:true,zoom:1.0,
+                    geo:{map:mapName,roam:true,zoom:1.0,silent:true,
                         label:{show:true,color:'#64748b'},
                         itemStyle:{areaColor:'#e8ecf1',borderColor:'#94a3b8',borderWidth:1.5},
-                        emphasis:{itemStyle:{areaColor:hoverColor},label:{color:'#854d0e'}}},
+                        emphasis:{disabled:true}},
                     series:[
-                        {name:'路线',type:'lines',coordinateSystem:'geo',data:routeData,
+                        {name:'路线',type:'lines',coordinateSystem:'geo',data:routeData,silent:true,
                             lineStyle:{width:2.5,opacity:.85},
                             effect:{show:true,symbol:'arrow',symbolSize:7,period:8},zlevel:1.8},
-                        {name:'标注',type:'effectScatter',coordinateSystem:'geo',data:markerData,
+                        {name:'标注',type:'effectScatter',coordinateSystem:'geo',data:markerData,silent:true,
                             showEffectOn:'render',rippleEffect:{brushType:'fill',scale:2},zlevel:2}
                     ]
                 };
@@ -653,24 +644,23 @@ const App=()=>{
             setLoading(false);
 
             chart.off('click');
+            chart.getZr().off('click');
             chart.on('click',(params)=>{
-                if(mode==='province'){
-                    if(annoTool&&editMode){
-                        const pixel=getEventPixel(params.event);
-                        if(!pixel)return;
-                        if(annoTool==='note'){
-                            addAnnotation(provinceName,null,pixel[0],pixel[1]);
-                            return;
-                        }
-                        const coord=chart.convertFromPixel({geoIndex:0},pixel);
-                        if(!coord||!isFinite(coord[0])||!isFinite(coord[1]))return;
-                        addAnnotation(provinceName,coord,pixel[0],pixel[1]);
-                    }
-                    return;
-                }
+                if(mode==='province')return;
                 if(params.componentType==='series'&&params.seriesType==='map'){
                     setSelName(resolveProvinceName(params.name)||params.name);
                 }
+            });
+            chart.getZr().on('click',(event)=>{
+                if(mode!=='province'||!annoTool||!editMode)return;
+                const pixel=[event.offsetX,event.offsetY];
+                if(annoTool==='note'){
+                    addAnnotation(provinceName,null,pixel[0],pixel[1]);
+                    return;
+                }
+                const coord=chart.convertFromPixel({geoIndex:0},pixel);
+                if(!coord||!isFinite(coord[0])||!isFinite(coord[1]))return;
+                addAnnotation(provinceName,coord,pixel[0],pixel[1]);
             });
             chart.off('dblclick');
             chart.on('dblclick',(params)=>{
