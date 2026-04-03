@@ -346,7 +346,17 @@ const INIT_RESOURCE={
     '云南省':{wind:20,solar:22,hydro:55,thermal:10},'辽宁省':{wind:25,solar:18,hydro:8,thermal:35},
     '内蒙古自治区':{wind:55,solar:48,hydro:5,thermal:20},'新疆维吾尔自治区':{wind:50,solar:52,hydro:8,thermal:18}
 };
-const RES_LABELS={wind:'风电(GW)',solar:'光伏(GW)',hydro:'水电(GW)',thermal:'火电(GW)'};
+const RES_LABELS={wind:'风电(万千瓦)',solar:'光伏(万千瓦)',hydro:'水电(万千瓦)',thermal:'火电(万千瓦)'};
+const RES_KEY_ALIAS={wind:'wind',solar:'solar',hydro:'hydro',thermal:'thermal','风':'wind','风电':'wind','光':'solar','光伏':'solar','水':'hydro','水电':'hydro','火':'thermal','火电':'thermal'};
+
+const INIT_STORAGE={
+    '河北省':{power:1200,capacity:2800,count:42,filedCount:35},
+    '山东省':{power:1600,capacity:3600,count:58,filedCount:48},
+    '广东省':{power:2100,capacity:4600,count:65,filedCount:53},
+    '江苏省':{power:1450,capacity:3200,count:47,filedCount:39},
+    '甘肃省':{power:980,capacity:2300,count:33,filedCount:27},
+    '内蒙古自治区':{power:1300,capacity:3000,count:44,filedCount:36}
+};
 
 const ANNO_TYPES={
     marker:{label:'标注点',icon:'pin',colors:['#22c55e','#7e22ce','#0ea5e9','#ef4444','#f59e0b','#0057F1']},
@@ -418,6 +428,8 @@ const App=()=>{
     const [resEndow,setResEndow]=useState(INIT_RESOURCE);
     const [resMetric,setResMetric]=useState('wind');
     const [resInput,setResInput]=useState('');
+    const [storageData,setStorageData]=useState(INIT_STORAGE);
+    const [storageInput,setStorageInput]=useState('');
     const [annotations,setAnnotations]=useState({});
     const [gridUploads,setGridUploads]=useState({});
     const [colorScales,setColorScales]=useState({
@@ -425,7 +437,8 @@ const App=()=>{
         energy:['#E0E7FF','#818CF8','#6366F1','#4338CA','#312E81'],
         spotProgress:['#dbeafe','#93c5fd','#60a5fa','#3b82f6','#1d4ed8'],
         capacity:['#FEF3C7','#FBBF24','#F59E0B','#D97706','#92400E'],
-        resource:['#D1FAE5','#6EE7B7','#34D399','#059669','#064E3B']
+        resource:['#D1FAE5','#6EE7B7','#34D399','#059669','#064E3B'],
+        storage:['#CCFBF1','#5EEAD4','#2DD4BF','#0D9488','#115E59']
     });
     const [annoTool,setAnnoTool]=useState(null);
     const [annoColor,setAnnoColor]=useState('#22c55e');
@@ -445,11 +458,12 @@ const App=()=>{
         if(marketType==='energy')return energyView==='spot-progress'?'现货市场进程':'电能量价差';
         if(marketType==='capacity')return '容量电价';
         if(marketType==='resource')return '资源禀赋';
+        if(marketType==='storage')return '独立储能装机';
         return '图例';
     },[viewMode,editMode,marketType,energyView]);
 
     const getEntry=(name)=>{
-        const datasets={frequency:freqData,energy:energyEntries,spotProgress:spotProgressData,capacity:capData};
+        const datasets={frequency:freqData,energy:energyEntries,spotProgress:spotProgressData,capacity:capData,storage:storageData};
         return datasets[activeDataKey]?.[name]||null;
     };
     const getOrDefault=(name)=>getEntry(name)||makeDefaultEntry(name);
@@ -469,12 +483,41 @@ const App=()=>{
             const val=Number(metrics?.[resMetric])||0;
             const total=Object.values(metrics).reduce((s,v)=>s+(Number(v)||0),0);
             const pieData=Object.entries(metrics).map(([k,v])=>({name:RES_LABELS[k]||k,value:Number(v)||0})).sort((a,b)=>b.value-a.value);
-            out[prov]={title:`${prov} 资源禀赋`,totalVolume:`${RES_LABELS[resMetric]}: ${val} GW`,
-                marketVolumeDisplay:`合计装机约${total.toFixed(1)} GW`,tags:['资源禀赋'],
-                resourcePieData:pieData,details:pieData.map(i=>({label:i.name,value:`${i.value} GW`})),mapValue:val};
+            out[prov]={title:`${prov} 资源禀赋`,totalVolume:`${RES_LABELS[resMetric]}: ${val} 万千瓦`,
+                marketVolumeDisplay:`合计装机约${total.toFixed(1)} 万千瓦`,tags:['资源禀赋'],
+                resourcePieData:pieData,details:pieData.map(i=>({label:i.name,value:`${i.value} 万千瓦`})),mapValue:val};
         });
         return out;
     },[resEndow,resMetric]);
+
+    const storageRange=useMemo(()=>{
+        const vals=Object.values(storageData).map(d=>Number(d?.power)||0).filter(v=>v>0);
+        return vals.length?{min:Math.min(...vals),max:Math.max(...vals)}:{min:0,max:2000};
+    },[storageData]);
+    const storageEntries=useMemo(()=>{
+        const out={};
+        Object.entries(storageData).forEach(([prov,info])=>{
+            const power=Number(info?.power)||0;
+            const capacity=Number(info?.capacity)||0;
+            const count=Number(info?.count)||0;
+            const filedCount=Number(info?.filedCount)||0;
+            out[prov]={
+                title:`${prov} 独立储能装机`,
+                totalVolume:`总功率: ${power} MW`,
+                marketVolumeDisplay:`总容量 ${capacity} MWh · 数量 ${count} 座（备案 ${filedCount} 座）`,
+                tags:['独立储能'],
+                details:[
+                    {label:'独立储能总功率',value:`${power} MW`},
+                    {label:'独立储能总容量',value:`${capacity} MWh`},
+                    {label:'独立储能数量',value:`${count}`},
+                    {label:'备案数量',value:`${filedCount}`}
+                ],
+                mapValue:power,
+                color:info?.color||null
+            };
+        });
+        return out;
+    },[storageData]);
 
     const freqRange=useMemo(()=>{
         const vals=Object.values(freqData).map(d=>d.mapValue||0).filter(v=>v>0);
@@ -531,6 +574,13 @@ const App=()=>{
                     data.push({name,value:d.mapValue,itemStyle:{areaColor:color,borderColor:'#fff',borderWidth:1.2},emphasis:{itemStyle:{areaColor:hoverColor}}});
                 }
             });
+        } else if(marketType==='storage'){
+            Object.entries(storageEntries).forEach(([name,d])=>{
+                if(d.mapValue>0){
+                    const color=d.color||getColor(d.mapValue,storageRange.min,storageRange.max,currentPalette);
+                    data.push({name,value:d.mapValue,itemStyle:{areaColor:color,borderColor:'#fff',borderWidth:1.2},emphasis:{itemStyle:{areaColor:hoverColor}}});
+                }
+            });
         }
         return data;
     };
@@ -583,7 +633,7 @@ const App=()=>{
                         extraCssText:'border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.1);',
                         formatter:(params)=>{
                             if(params.value===undefined||params.value===null)return`<div style="font-weight:700;font-size:13px">${params.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">点击查看详情 · 双击进入省级</div>`;
-                            const entry=getEntry(params.name)||(marketType==='resource'?resData[params.name]:null);
+                            const entry=getEntry(params.name)||(marketType==='resource'?resData[params.name]:marketType==='storage'?storageEntries[params.name]:null);
                             if(!entry)return`<div style="font-weight:700;font-size:13px">${params.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px">暂无数据 · 点击查看</div>`;
                             return`<div style="font-weight:700;font-size:13px;margin-bottom:4px;">${params.name}</div>`
                                 +(entry.totalVolume?`<div style="font-size:12px;color:#475569;">${entry.totalVolume}</div>`:'')
@@ -748,7 +798,7 @@ const App=()=>{
     };
 
     // ─── Effects ───
-    useEffect(()=>{loadMap(viewMode,curProvince);},[viewMode,curProvince,marketType,energyView,resData,freqData,capData,energyEntries,spotProgressData,colorScales,annotations,annoTool,editMode,routeStart,shapeStart]);
+    useEffect(()=>{loadMap(viewMode,curProvince);},[viewMode,curProvince,marketType,energyView,resData,storageEntries,freqData,capData,energyEntries,spotProgressData,colorScales,annotations,annoTool,editMode,routeStart,shapeStart]);
     useEffect(()=>{setViewMode('china');setCurProvince(null);setSelName(null);setAnnoTool(null);setRouteStart(null);if(marketType!=='energy')setEnergyView('price');},[marketType]);
     useEffect(()=>{if(marketType==='energy'){setViewMode('china');setCurProvince(null);setSelName(null);}},[energyView]);
     useEffect(()=>{const h=()=>chartRef.current?.resize();window.addEventListener('resize',h);return()=>window.removeEventListener('resize',h);},[]);
@@ -771,11 +821,51 @@ const App=()=>{
     },[isResizing]);
 
     // ─── Handlers ───
+    const parseLines=(text)=>text.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);
+    const splitColumns=(line)=>line.split(/[\t,，]/).map(i=>i.trim()).filter(Boolean);
+    const applyResInput=()=>{
+        if(!resInput.trim())return;
+        const updates={};
+        parseLines(resInput).forEach(line=>{
+            const [provRaw,keyRaw,valRaw]=splitColumns(line);
+            const prov=resolveProvinceName(provRaw)||provRaw;
+            const key=RES_KEY_ALIAS[(keyRaw||'').toLowerCase()]||RES_KEY_ALIAS[keyRaw];
+            const val=Number(valRaw);
+            if(prov&&key&&Number.isFinite(val)){
+                updates[prov]={...(updates[prov]||{}),[key]:val};
+            }
+        });
+        if(Object.keys(updates).length){
+            setResEndow(prev=>{
+                const next={...prev};
+                Object.entries(updates).forEach(([prov,metricObj])=>{
+                    next[prov]={...(next[prov]||{}),...metricObj};
+                });
+                return next;
+            });
+        }
+        setResInput('');
+    };
+    const applyStorageInput=()=>{
+        if(!storageInput.trim())return;
+        const updates={};
+        parseLines(storageInput).forEach(line=>{
+            const [provRaw,powerRaw,capacityRaw,countRaw,filedRaw]=splitColumns(line);
+            const prov=resolveProvinceName(provRaw)||provRaw;
+            const power=Number(powerRaw),capacity=Number(capacityRaw),count=Number(countRaw),filedCount=Number(filedRaw);
+            if(prov&&[power,capacity,count,filedCount].every(Number.isFinite)){
+                updates[prov]={power,capacity,count,filedCount};
+            }
+        });
+        if(Object.keys(updates).length)setStorageData(prev=>({...prev,...updates}));
+        setStorageInput('');
+    };
+
     const handleBack=()=>{setViewMode('china');setCurProvince(null);setAnnoTool(null);setRouteStart(null);setShapeStart(null);};
     const closeSidebar=()=>setSelName(null);
 
     const updateEntry=(name,field,value)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData,storage:setStorageData};
         const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
@@ -800,7 +890,7 @@ const App=()=>{
     };
 
     const addDetail=(name)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData,storage:setStorageData};
         const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
@@ -811,7 +901,7 @@ const App=()=>{
     };
 
     const removeDetail=(name,idx)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData,storage:setStorageData};
         const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
@@ -822,7 +912,7 @@ const App=()=>{
     };
 
     const addTag=(name,tag)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData,storage:setStorageData};
         const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
@@ -834,7 +924,7 @@ const App=()=>{
 
     // ★ NEW: Remove tag
     const removeTag=(name,tagIdx)=>{
-        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData};
+        const setters={frequency:setFreqData,energy:setEnergyEntries,spotProgress:setSpotProgressData,capacity:setCapData,storage:setStorageData};
         const setter=setters[activeDataKey];
         if(!setter)return;
         setter(prev=>{
@@ -851,7 +941,7 @@ const App=()=>{
         const a=document.createElement('a');a.href=url;a.download='电力市场热力图_导出.html';a.click();URL.revokeObjectURL(url);
     };
     const handleExportJSON=()=>{
-        const payload={freqData,energyEntries,spotProgressData,capData,resEndow,annotations,gridUploads,colorScales};
+        const payload={freqData,energyEntries,spotProgressData,capData,resEndow,storageData,annotations,gridUploads,colorScales};
         const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
         const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='heatmap-data.json';a.click();URL.revokeObjectURL(url);
     };
@@ -865,6 +955,7 @@ const App=()=>{
             if(j.spotProgressData)setSpotProgressData(j.spotProgressData);
             if(j.capData)setCapData(j.capData);
             if(j.resEndow)setResEndow(j.resEndow);
+            if(j.storageData)setStorageData(j.storageData);
             if(j.annotations)setAnnotations(j.annotations);
             if(j.gridUploads)setGridUploads(j.gridUploads);
             if(j.colorScales)setColorScales(j.colorScales);
@@ -882,20 +973,23 @@ const App=()=>{
         {key:'frequency',label:'二次调频',icon:<Activity size={14}/>,color:'#2563eb'},
         {key:'energy',label:'电能量',icon:<BatteryC size={14}/>,color:'#4f46e5'},
         {key:'capacity',label:'容量电价',icon:<DollarSign size={14}/>,color:'#d97706'},
-        {key:'resource',label:'资源禀赋',icon:<Layers size={14}/>,color:'#059669'}
+        {key:'resource',label:'资源禀赋',icon:<Layers size={14}/>,color:'#059669'},
+        {key:'storage',label:'独立储能装机',icon:<ArchiveIc size={14}/>,color:'#0f766e'}
     ];
 
     const mainTitle=viewMode==='province'?`${shortName(curProvince)} 省级详情`
         :marketType==='frequency'?'二次调频市场热力图'
         :marketType==='capacity'?'容量电价热力图'
         :marketType==='resource'?'资源禀赋热力图'
+        :marketType==='storage'?'独立储能装机热力图'
         :energyView==='price'?'电能量价差热力图':'现货市场进程';
 
     const selEntry=useMemo(()=>{
         if(!selName)return null;
         if(marketType==='resource')return resData[selName]||makeDefaultEntry(selName);
+        if(marketType==='storage')return storageEntries[selName]||makeDefaultEntry(selName);
         return getOrDefault(selName);
-    },[selName,marketType,energyView,freqData,energyEntries,spotProgressData,capData,resData]);
+    },[selName,marketType,energyView,freqData,energyEntries,spotProgressData,capData,resData,storageEntries]);
 
     const provAnnos=curProvince?annotations[curProvince]||{markers:[],routes:[],notes:[],shapes:[]}:{markers:[],routes:[],notes:[],shapes:[]};
     const provGrids=(prov)=>[...(gridUploads[prov]||[])];
@@ -1070,17 +1164,53 @@ const App=()=>{
                                         min={resRange.min} max={resRange.max}
                                         label={`${RES_LABELS[resMetric]||resMetric} 装机`}
                                         ticks={[
-                                            {pos:'0%',text:`${resRange.min} GW`},
-                                            {pos:'50%',text:`${((resRange.min+resRange.max)/2).toFixed(0)} GW`},
-                                            {pos:'100%',text:`${resRange.max} GW`}
+                                            {pos:'0%',text:`${resRange.min} 万千瓦`},
+                                            {pos:'50%',text:`${((resRange.min+resRange.max)/2).toFixed(0)} 万千瓦`},
+                                            {pos:'100%',text:`${resRange.max} 万千瓦`}
                                         ]}
                                     />
                                     <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
                                         覆盖 {Object.keys(resData).length} 省份 · 绿色越深表示该类电源装机规模越大
                                     </div>
                                     {editMode&&<>
-                                        <textarea value={resInput} onChange={e=>setResInput(e.target.value)} placeholder="省份,指标,数值（如：河北省,wind,35）" className="w-full h-14 text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus:outline-none ef" rows={2}/>
-                                        <button onClick={()=>{if(!resInput.trim())return;resInput.split('\n').filter(Boolean).forEach(l=>{const[p,k,v]=l.split(/[,，]/);const n=parseFloat(v);if(p?.trim()&&k?.trim()&&!isNaN(n))setResEndow(pr=>({...pr,[p.trim()]:{...(pr[p.trim()]||{}),[k.trim()]:n}}));});setResInput('');}} className="w-full bg-emerald-600 text-white text-[11px] font-bold py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">应用数据</button>
+                                        <textarea
+                                            value={resInput}
+                                            onChange={e=>setResInput(e.target.value)}
+                                            onPaste={e=>{e.stopPropagation();const text=e.clipboardData?.getData('text');if(text){e.preventDefault();setResInput(prev=>`${prev}${prev?'\n':''}${text}`);}}}
+                                            placeholder="省份,指标,数值（支持逗号/制表符，如：河北省,wind,35）"
+                                            className="w-full h-16 text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus:outline-none ef"
+                                            rows={3}
+                                        />
+                                        <button onClick={applyResInput} className="w-full bg-emerald-600 text-white text-[11px] font-bold py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">应用数据</button>
+                                    </>}
+                                    </>
+                                )}
+
+                                {marketType==='storage'&&(
+                                    <>
+                                    <LegendBar
+                                        palette={currentPalette}
+                                        min={storageRange.min} max={storageRange.max}
+                                        label="独立储能总功率（MW）"
+                                        ticks={[
+                                            {pos:'0%',text:`${storageRange.min} MW`},
+                                            {pos:'50%',text:`${((storageRange.min+storageRange.max)/2).toFixed(0)} MW`},
+                                            {pos:'100%',text:`${storageRange.max} MW`}
+                                        ]}
+                                    />
+                                    <div className="text-[10px] text-slate-400 bg-slate-50 rounded-lg p-2 border border-slate-100">
+                                        覆盖 {Object.keys(storageEntries).length} 省份 · 颜色越深表示独立储能总功率越高
+                                    </div>
+                                    {editMode&&<>
+                                        <textarea
+                                            value={storageInput}
+                                            onChange={e=>setStorageInput(e.target.value)}
+                                            onPaste={e=>{e.stopPropagation();const text=e.clipboardData?.getData('text');if(text){e.preventDefault();setStorageInput(prev=>`${prev}${prev?'\n':''}${text}`);}}}
+                                            placeholder="省份,总功率MW,总容量MWh,数量,备案数量"
+                                            className="w-full h-16 text-xs rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 focus:outline-none ef"
+                                            rows={3}
+                                        />
+                                        <button onClick={applyStorageInput} className="w-full bg-teal-600 text-white text-[11px] font-bold py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-sm">应用独立储能数据</button>
                                     </>}
                                     </>
                                 )}
@@ -1231,7 +1361,7 @@ const App=()=>{
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {editMode&&marketType!=='resource'&&(
+                        {editMode&&marketType!=='resource'&&marketType!=='storage'&&(
                             <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
                                 {!(marketType==='energy'&&energyView==='spot-progress')&&(
                                     <div className="flex-1 space-y-1">
